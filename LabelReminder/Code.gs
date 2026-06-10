@@ -171,50 +171,63 @@ function detectLanguage(text) {
 // GEMINI REMINDER
 // ════════════════════════════════════════════════════════════════════════════
 
-function generateReminderText(originalSubject, originalSnippet, senderName, lang) {
-  try {
-    const apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
-    if (!apiKey) throw new Error('GEMINI_API_KEY not set');
+/**
+ * Parst GEMINI_API_KEY als komma-gescheiden lijst.
+ * "key1,key2,key3" → ["key1", "key2", "key3"]
+ */
+function getApiKeys() {
+  const raw = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+  if (!raw) return [];
+  return raw.split(',').map(k => k.trim()).filter(k => k.length > 0);
+}
 
-    const langInstruction = lang === 'nl'
+function generateReminderText(originalSubject, originalSnippet, senderName, lang) {
+  const langInstruction = lang === 'nl'
       ? 'Schrijf de e-mail in het Nederlands.'
       : 'Write the email in English.';
 
-    const prompt = [
-      langInstruction,
-      '',
-      'Schrijf een korte, vriendelijke herinneringsmail.',
-      'De ontvanger heeft nog niet gereageerd op een eerder verzonden e-mail.',
-      'Vraag beleefd of ze al de tijd hebben gehad om te antwoorden.',
-      'Toon begrip, geen urgentie. Houd het kort en professioneel.',
-      '',
-      'Context:',
-      `- Origineel onderwerp: "${originalSubject}"`,
-      `- Korte inhoud: "${originalSnippet}"`,
-      '',
-      `Enkel de body, geen onderwerpregel. Maximaal 100 woorden.`,
-      `Sluit af met "Met vriendelijke groeten,\n${CONFIG.SENDER_ALIAS}"`,
-    ].join('\n');
+  const prompt = [
+    langInstruction,
+    '',
+    'Schrijf een korte, vriendelijke herinneringsmail.',
+    'De ontvanger heeft nog niet gereageerd op een eerder verzonden e-mail.',
+    'Vraag beleefd of ze al de tijd hebben gehad om te antwoorden.',
+    'Toon begrip, geen urgentie. Houd het kort en professioneel.',
+    '',
+    'Context:',
+    `- Origineel onderwerp: "${originalSubject}"`,
+    `- Korte inhoud: "${originalSnippet}"`,
+    '',
+    `Enkel de body, geen onderwerpregel. Maximaal 100 woorden.`,
+    `Sluit af met "Met vriendelijke groeten,\n${CONFIG.SENDER_ALIAS}"`,
+  ].join('\n');
 
-    const response = UrlFetchApp.fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'post',
-        headers: { 'Content-Type': 'application/json' },
-        payload: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-        }),
-      }
-    );
+  // Meerdere API keys: probeer ze één voor één tot er eentje werkt
+  const keys = getApiKeys();
+  if (keys.length === 0) return buildFallbackText(senderName, originalSubject, lang);
 
-    const result = JSON.parse(response.getContentText())
-      .candidates[0].content.parts[0].text.trim();
-    return result;
-
-  } catch (err) {
-    log(`[WARN] Gemini failed (${err.message}), using fallback text`);
-    return buildFallbackText(senderName, originalSubject, lang);
+  for (const apiKey of keys) {
+    try {
+      const response = UrlFetchApp.fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+        {
+          method: 'post',
+          headers: { 'Content-Type': 'application/json' },
+          payload: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+          }),
+        }
+      );
+      const result = JSON.parse(response.getContentText())
+        .candidates[0].content.parts[0].text.trim();
+      return result;
+    } catch (err) {
+      log(`[WARN] Gemini key failed (${err.message}), trying next...`);
+    }
   }
+
+  log(`[WARN] Alle ${keys.length} API keys failed, using fallback`);
+  return buildFallbackText(senderName, originalSubject, lang);
 }
 
 // ════════════════════════════════════════════════════════════════════════════
