@@ -4,6 +4,34 @@ Twee Google Apps Script projecten voor automatische e-mailherinneringen via Gmai
 
 ---
 
+## 🧪 Preview & Dry-Run Modes
+
+Het script heeft **drie manieren** om te zien wat er zou gebeuren zonder echt te versturen:
+
+- **`previewReminders()`** — Logt status van alle threads: ⏸ on-hold, 🔴 nu versturen, ⏳ resterende dagen. Snelste check.
+- **`dryRun()`** — Maakt Gmail concepten (drafts) aan ipv te versturen. Zie de exacte AI-gegenereerde body.
+- **`CONFIG.DRY_RUN = true`** — Logt alles, niets wordt aangemaakt in Gmail. Volledige output in Execution log.
+
+**Default:** `CREATE_DRAFTS: true` — alle reminders worden altijd eerst als concept.
+Zet `CREATE_DRAFTS = false` pas wanneer je live wil versturen.
+
+### Voorbeeld
+
+```javascript
+// Stap 1: check status
+previewReminders();
+
+// Stap 2: bekijk de concepten in Gmail → Drafts
+dryRun();
+
+// Stap 3: pas live gaan
+// Bewerk CONFIG.CREATE_DRAFTS = false in de code OF
+// roep geen dryRun() aan, gewoon wachten op de trigger
+checkReminders(); // verstuurt nu echt
+```
+
+---
+
 ## 📦 Projecten
 
 ### 1. FollowUpReminder — AWV Dossier Opvolging
