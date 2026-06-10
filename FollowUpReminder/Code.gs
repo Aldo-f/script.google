@@ -33,7 +33,13 @@ const CONFIG = {
     CLOSED:    'FollowUp/Closed',
   },
 
-  TICKET_REGEX: /[A-Z]{2,}-\d{4}-\d{4,}/g,
+  TICKET_REGEX: /[A-Z]{2,}-\d{4,}/g,
+
+  // AI Providers — waterfall: FreeLLMAPI first, then Gemini
+  FREE_LLM_API_URL: 'https://freellm.aldof.duckdns.org/v1/chat/completions',
+  FREE_LLM_API_KEY: 'freellmapi-6887a86f4be99b516b912283dde20d7eb4ead65e3d0ae312',
+  FREE_LLM_MODEL:   'auto',
+  GEMINI_MODEL:     'gemini-2.0-flash',
 
   WATCHLIST: [
     {
@@ -275,44 +281,149 @@ function sendEscalation(entry, pending, escalatedLabel) {
   });
 }
 
-// ─── LLM REWRITE ─────────────────────────────────────────────────────────────
+// ─── LLM REWRITE — WATERFALL (FreeLLMAPI → Gemini) ─────────────────────────────
 
 /**
- * Rewrites a fallback-generated email body using Gemini to make it
+ * Parse comma-separated GEMINI_API_KEY from Script Properties.
+ * "key1,key2,key3" → ["key1", "key2", "key3"]
+ */
+function getGeminiApiKeys() {
+  const raw = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+  if (!raw) return [];
+  return raw.split(',').map(k => k.trim()).filter(k => k.length > 0);
+}
+
+/**
+ * Call FreeLLMAPI (OpenAI-compatible).
+ * Returns text on success, throws on failure.
+ */
+function callFreeLLM(prompt) {
+  const url = CONFIG.FREE_LLM_API_URL;
+  const apiKey = CONFIG.FREE_LLM_API_KEY;
+  const model = CONFIG.FREE_LLM_MODEL;
+
+  if (!url || !apiKey) {
+    throw new Error('FreeLLMAPI not configured');
+  }
+
+  const response = UrlFetchApp.fetch(url, {
+    method: 'post',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    payload: JSON.stringify({
+      model: model,
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 800,
+      temperature: 0.7,
+    }),
+    muteHttpExceptions: true,
+  });
+
+  const code = response.getResponseCode();
+  const body = response.getContentText();
+
+  if (code !== 200) {
+    throw new Error(`FreeLLMAPI HTTP ${code}: ${body}`);
+  }
+
+  const parsed = JSON.parse(body);
+  const text = parsed.choices?.[0]?.message?.content?.trim();
+  if (!text) throw new Error('FreeLLMAPI: empty response');
+  return text;
+}
+
+/**
+ * Call Gemini with multi-key fallback.
+ * Returns text on success, throws if all keys fail.
+ */
+function callGemini(prompt) {
+  const keys = getGeminiApiKeys();
+  if (keys.length === 0) throw new Error('No GEMINI_API_KEY configured');
+
+  const model = CONFIG.GEMINI_MODEL;
+
+  for (const apiKey of keys) {
+    try {
+      const response = UrlFetchApp.fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: 'post',
+          headers: { 'Content-Type': 'application/json' },
+          payload: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { maxOutputTokens: 800, temperature: 0.7 },
+          }),
+          muteHttpExceptions: true,
+        }
+      );
+
+      const code = response.getResponseCode();
+      const body = response.getContentText();
+
+      if (code !== 200) {
+        throw new Error(`Gemini HTTP ${code}: ${body}`);
+      }
+
+      const result = JSON.parse(body)
+        .candidates[0].content.parts[0].text.trim();
+      return result;
+    } catch (err) {
+      log(`[WARN] Gemini key failed (${err.message}), trying next...`);
+    }
+  }
+  throw new Error(`All ${keys.length} Gemini keys failed`);
+}
+
+/**
+ * Waterfall: try FreeLLMAPI first, then Gemini multi-key.
+ * Returns AI text or throws if all fail.
+ */
+function callAI(prompt) {
+  // 1. Try FreeLLMAPI
+  try {
+    const text = callFreeLLM(prompt);
+    log('[AI] FreeLLMAPI success');
+    return text;
+  } catch (err) {
+    log(`[WARN] FreeLLMAPI failed: ${err.message}, falling back to Gemini`);
+  }
+
+  // 2. Try Gemini (multi-key)
+  try {
+    const text = callGemini(prompt);
+    log('[AI] Gemini success');
+    return text;
+  } catch (err) {
+    log(`[WARN] Gemini failed: ${err.message}`);
+  }
+
+  // 3. All failed
+  throw new Error('All AI providers failed');
+}
+
+/**
+ * Rewrites a fallback-generated email body using AI (waterfall) to make it
  * sound more natural, while preserving all factual content.
- * Falls back to the original body if the API call fails.
+ * Falls back to the original body if all AI providers fail.
  */
 function rewriteWithLlm(body) {
+  const prompt = [
+    'Herschrijf de onderstaande e-mail in een meer persoonlijke, menselijke schrijfstijl.',
+    'Behoud alle feitelijke informatie exact (referentienummers, datums, locaties, aantallen).',
+    'Maak de toon vriendelijk maar professioneel.',
+    'Geen onderwerpregel, enkel de bodytekst.',
+    'Sluit af op dezelfde manier als het origineel (Met vriendelijke groeten, Aldo Fieuw).',
+    '',
+    'Originele e-mail:',
+    body,
+  ].join('\n');
+
   try {
-    const apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
-    if (!apiKey) throw new Error('GEMINI_API_KEY not set');
-
-    const prompt = [
-      'Herschrijf de onderstaande e-mail in een meer persoonlijke, menselijke schrijfstijl.',
-      'Behoud alle feitelijke informatie exact (referentienummers, datums, locaties, aantallen).',
-      'Maak de toon vriendelijk maar professioneel.',
-      'Geen onderwerpregel, enkel de bodytekst.',
-      'Sluit af op dezelfde manier als het origineel (Met vriendelijke groeten, Aldo Fieuw).',
-      '',
-      'Originele e-mail:',
-      body,
-    ].join('\n');
-
-    const response = UrlFetchApp.fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-      {
-        method:  'post',
-        headers: { 'Content-Type': 'application/json' },
-        payload: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-        }),
-      }
-    );
-
-    return JSON.parse(response.getContentText()).candidates[0].content.parts[0].text.trim();
-
+    return callAI(prompt);
   } catch (err) {
-    log(`[WARN] Gemini rewrite failed (${err.message}), using fallback body`);
+    log(`[WARN] All AI providers failed (${err.message}), using fallback body`);
     return body;
   }
 }
