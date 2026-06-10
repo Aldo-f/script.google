@@ -1,141 +1,143 @@
 # Gmail Reminder Scripts 🤖📧
 
-Twee Google Apps Script projecten voor automatische e-mailherinneringen via Gmail-labels.
+Two Google Apps Script projects for automated email reminders via Gmail labels.
 
 ---
 
 ## 🧪 Preview & Dry-Run Modes
 
-Het script heeft **drie manieren** om te zien wat er zou gebeuren zonder echt te versturen:
+The script has **three ways** to preview what would happen without actually sending:
 
-- **`previewReminders()`** — Logt status van alle threads: ⏸ on-hold, 🔴 nu versturen, ⏳ resterende dagen. Snelste check.
-- **`dryRun()`** — Maakt Gmail concepten (drafts) aan ipv te versturen. Zie de exacte AI-gegenereerde body.
-- **`CONFIG.DRY_RUN = true`** — Logt alles, niets wordt aangemaakt in Gmail. Volledige output in Execution log.
+- **`previewReminders()`** — Logs status of all threads: ⏸ on-hold, 🔴 due now, ⏳ remaining days. Quickest check.
+- **`dryRun()`** — Creates Gmail drafts instead of sending. See the exact AI-generated body.
+- **`CONFIG.DRY_RUN = true`** — Logs everything, nothing created in Gmail. Full output in Execution log.
 
-**Default:** `CREATE_DRAFTS: true` — alle reminders worden altijd eerst als concept.
-Zet `CREATE_DRAFTS = false` pas wanneer je live wil versturen.
+**Default:** `CREATE_DRAFTS: true` — all reminders are created as drafts first.
+Set `CREATE_DRAFTS = false` only when ready to go live.
 
-### Voorbeeld
+### Example
 
 ```javascript
-// Stap 1: check status
+// Step 1: check status
 previewReminders();
 
-// Stap 2: bekijk de concepten in Gmail → Drafts
+// Step 2: view drafts in Gmail → Drafts
 dryRun();
 
-// Stap 3: pas live gaan
-// Bewerk CONFIG.CREATE_DRAFTS = false in de code OF
-// roep geen dryRun() aan, gewoon wachten op de trigger
-checkReminders(); // verstuurt nu echt
+// Step 3: go live
+// Edit CONFIG.CREATE_DRAFTS = false in code OR
+// just let the trigger run normally
+checkReminders(); // actually sends
 ```
 
 ---
 
-## 📦 Projecten
+## 📦 Projects
 
-### 1. FollowUpReminder — AWV Dossier Opvolging
+### 1. FollowUpReminder — AWV Case Follow-Up
 
-**Doel:** Automatische opvolging van AWV-meldingsdossiers voor de gemeente Merelbeke-Melle.
+**Purpose:** Automated follow-up of AWV notification cases for the municipality of Merelbeke-Melle.
 
-Scant Gmail op onbeantwoarde dossiers, stuurt samenvattende digest-e-mails, en escaleert hardnekkige dossiers naar de "big chief".
+Scans Gmail for unanswered cases, sends summary digest emails, and escalates stubborn cases to the "big chief".
 
 **Flow:**
 
 ```
-AWV mail komt binnen
+AWV email arrives
        │
        ▼
-FollowUpReminder detecteert (search query + label FollowUp/Active)
+FollowUpReminder detects (search query + FollowUp/Active label)
        │
        ▼
-Om de X dagen: collectPending()
+Every X days: collectPending()
   │  ┌── skip closed (FollowUp/Closed)
-  │  └── skip replied (recipient heeft geantwoord)  
+  │  └── skip replied (recipient has answered)  
   │
   ▼
 processFollowUps()
   │
-  ├── pending met < ESCALATE_AFTER reminders → toDigest
-  │     └── sendDigest(): samenvattende mail met alle openstaande dossiers
+  ├── pending with < ESCALATE_AFTER reminders → toDigest
+  │     └── sendDigest(): summary email with all open cases
   │
-  └── pending met >= ESCALATE_AFTER reminders → toEscalate
-        └── sendEscalation(): aparte mail naar big chief + FollowUp/Escalated label
+  └── pending with >= ESCALATE_AFTER reminders → toEscalate
+        └── sendEscalation(): separate email to big chief + FollowUp/Escalated label
 ```
 
-**✅ Sinds de fix:** Geëscaleerde threads blijven in de digest! Ze worden niet opnieuw geëscaleerd, maar de gewone reminder-digests blijven komen tot het dossier gesloten is.
+**✅ After fix:** Escalated threads stay in the digest! They won't be re-escalated, but regular reminder digests continue until the case is closed.
 
-**Labels:** `FollowUp/Active`, `FollowUp/Closed`, `FollowUp/Escalated`, `FollowUp/1` t/m `FollowUp/N`
+**Labels:** `FollowUp/Active`, `FollowUp/Closed`, `FollowUp/Escalated`, `FollowUp/1` through `FollowUp/N`
 
-**Ontvanger:** `mobiliteit@merelbeke-melle.be`
+**Recipient:** `mobiliteit@merelbeke-melle.be`
 
 ---
 
-### 2. LabelReminder — Universele Label Herinneringen
+### 2. LabelReminder — Universal Label Reminders
 
-**Doel:** Plak een label op **eender welke** e-mail, krijg een AI-herinnering na een bepaalde tijd.
+**Purpose:** Apply a label to **any** email, get an AI reminder after a specified time.
 
-Werkt op elke inbox, niet gebonden aan specifieke ontvangers. Gebruikt Gemini AI om de herinnering in de juiste taal (NL/EN) te genereren.
+Works on any inbox, not tied to specific recipients. Uses Gemini AI to generate reminders in the correct language (NL/EN).
 
 **Flow:**
 
 ```
-Plak remind-every/2weeks op een e-mail in Gmail
+Apply remind-every/2weeks to any email in Gmail
        │
        ▼
-Check om de 6 uur: checkReminders()
+Every 6h: checkReminders()
   │
-  ├── Stap 1: autoPauseOnReply()
-  │     └── Ontvanger geantwoord? → plak remind-every/on-hold (pauze)
+  ├── Step 1: autoPauseOnReply()
+  │     └── Recipient replied? → apply remind-every/on-hold (pause)
   │
-  └── Stap 2: reminders sturen
-        └── Filter on-hold eruit
-              └── Interval verstreken sinds laatste bericht van Aldo?
-                    └── Ja → AI-herinnering (Gemini) in taal van originele mail
+  └── Step 2: send reminders
+        └── Filter out on-hold
+              └── Interval elapsed since last message from Aldo?
+                    └── Yes → AI reminder (Gemini) in language of original email
 ```
 
-**Jouw controle:**
+**Your control:**
 
-| Wat je doet | Wat gebeurt |
+| What you do | What happens |
 |---|---|
-| Recipient replyt | `on-hold` wordt auto toegevoegd ⏸ |
-| Jij verwijdert `on-hold` | Hervatten bij volgende check ▶️ |
-| Jij voegt `on-hold` toe | Reminders gestopt |
-| Jij verwijdert `remind-every/2weeks` | Thread uit scope 🗑 |
-| Jij antwoordt manueel | Timer reset (laatste bericht van Aldo) |
+| Recipient replies | `on-hold` auto-applied ⏸ |
+| You remove `on-hold` | Resumes on next check ▶️ |
+| You add `on-hold` | Reminders stopped |
+| You remove `remind-every/2weeks` | Thread out of scope 🗑 |
+| You reply manually | Timer resets (last message from Aldo) |
 
-**Ondersteunde labels:** `remind-every/1week`, `remind-every/2weeks`, `remind-every/1month`, `remind-every/1year`, enz. (elke combinatie van getal + day/week/month/year)
+**Supported labels:** `remind-every/1week`, `remind-every/2weeks`, `remind-every/1month`, `remind-every/1year`, etc. (any number + day/week/month/year combination)
 
-**Gebruikt Gemini API** voor het genereren van gepersonaliseerde herinneringen.
+**Uses Gemini API** for generating personalized reminders.
 
 ---
 
-## ⚙️ Technische details
+## ⚙️ Technical Details
 
-**Taal:** Google Apps Script (JavaScript V8 runtime)
+**Language:** Google Apps Script (JavaScript V8 runtime)
 
-**API's:**
-- Gmail API (lezen, labels, verzenden)
-- Gemini API (AI-reminders via UrlFetchApp)
+**APIs:**
+- Gmail API (read, labels, send)
+- Gemini API (AI reminders via UrlFetchApp)
 - Apps Script API (triggers)
 
-**Triggers:** Tijdgestuurd, om de 6 uur (`checkReminders` / `checkDigests` / `checkEscalations`)
+**Triggers:** Time-based, every 6 hours (`checkReminders` / `checkDigests` / `checkEscalations`)
 
-## 🚀 Lokaal ontwikkelen
+---
 
-De scripts zijn geëxporteerd vanuit Google Apps Script en staan in deze repo.
-Wijzig lokaal, test in de Apps Script editor, en commit.
+## 🚀 Local Development
+
+Scripts are exported from Google Apps Script and live in this repo.
+Edit locally, test in the Apps Script editor, and commit.
 
 ```bash
-# Structuur
+# Structure
 gmail-reminder-scripts/
 ├── FollowUpReminder/
-│   ├── Code.gs          # Hoofdscript
+│   ├── Code.gs          # Main script
 │   ├── Test.gs          # Tests
 │   └── appsscript.json  # Manifest
 ├── LabelReminder/
-│   ├── Code.gs          # Hoofdscript
+│   ├── Code.gs          # Main script
 │   └── appsscript.json  # Manifest
-├── README.md            # Dit bestand
-└── FLOW.md              # Gedetailleerde flows
+├── README.md            # This file
+└── FLOW.md              # Detailed flow diagrams
 ```
