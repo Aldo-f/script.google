@@ -1,0 +1,22 @@
+{
+  "name": "gmail-reminder-scripts",
+  "version": "1.0.0",
+  "description": "Google Apps Script projects for automated email reminders",
+  "private": true,
+  "scripts": {
+    "validate": "node scripts/validate.js",
+    "push:label": "clasp push --force -p LabelReminder",
+    "push:followup": "clasp push --force -p FollowUpReminder",
+    "pull:label": "clasp pull -p LabelReminder",
+    "pull:followup": "clasp pull -p FollowUpReminder",
+    "login": "clasp login",
+    "logout": "clasp logout",
+    "list": "clasp list"
+  },
+  "devDependencies": {
+    "@google/clasp": "^2.4.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "projects": {
+    "LabelReminder": "1ILoH9E1JGxuG_T-k4fDcJWnvF6Fl8LPBdYD0COerNIk5z6fhknbhYSCw",
+    "FollowUpReminder": "1BC9oGoHqrkQMO6fUIzTT7Hs_X4tRMB4ZOjXUrSUgMwa6NLUJ73GZLT_u"
+  },
+  "rootDir": ".",
+  "fileExtension": ".gs",
+  "filePushOrder": [
+    "LabelReminder/appsscript.json",
+    "LabelReminder/Code.gs",
+    "FollowUpReminder/appsscript.json",
+    "FollowUpReminder/Code.gs",
+    "FollowUpReminder/Test.gs",
+    "FollowUpReminder/AIProviders.test.gs"
+  ]
+}

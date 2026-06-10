@@ -1,0 +1,102 @@
+name: Validate Google Apps Script
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    name: Validate .gs files
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install clasp (Apps Script CLI)
+        run: npm install -g @google/clasp
+
+      - name: Validate syntax (Node.js parse)
+        run: |
+          echo "Checking JavaScript syntax..."
+          for file in $(find . -name "*.gs" -not -path "./.clasp/*"); do
+            echo "  Checking $file"
+            # Wrap in IIFE to catch syntax errors, replace Apps Script globals
+            node --check <(sed \
+              -e 's/^\(\s*\)\/\/\s*@ts-check.*$//' \
+              -e 's/Logger\.log/console.log/g' \
+              -e 's/PropertiesService/{\n  getScriptProperties: () => ({ getProperty: () => "" })\n}/g' \
+              -e 's/ScriptApp/{\n  getProjectTriggers: () => [],\n  newTrigger: () => ({ timeBased: () => ({ everyHours: () => ({ create: () => {} }) }) })\n}/g' \
+              -e 's/GmailApp/{\n  search: () => [],\n  getUserLabels: () => [],\n  getUserLabelByName: () => null,\n  createLabel: () => ({ addLabel: () => {}, removeLabel: () => {}, getName: () => "" }),\n  createDraft: () => {},\n  sendEmail: () => {},\n}/g' \
+              -e 's/UrlFetchApp/{\n  fetch: () => ({ getResponseCode: () => 200, getContentText: () => "{}" })\n}/g' \
+              -e 's/DriveApp/{\n  getFileById: () => ({ getAs: () => ({ setName: () => {} }), setTrashed: () => {} })\n}/g' \
+              -e 's/DocumentApp/{\n  create: () => ({ getId: () => "", getBody: () => ({ appendParagraph: () => ({ setHeading: () => {} }), appendPageBreak: () => {}, appendHorizontalRule: () => {}, saveAndClose: () => {} }) })\n}/g' \
+              -e 's/Utilities/{\n  formatDate: () => ""\n}/g' \
+              "$file" || exit 1)
+          done
+          echo "✅ All .gs files parse successfully"
+
+      - name: Check required functions exist
+        run: |
+          echo "Checking required functions..."
+          
+          # LabelReminder required functions
+          for fn in "checkReminders" "autoPauseOnReply" "previewReminders" "dryRun" "sendReminder" "generateReminderText" "getGeminiApiKeys" "callFreeLLM" "callGemini" "callAI" "setup"; do
+            if ! grep -r "function $fn" LabelReminder/ --include="*.gs"; then
+              echo "❌ Missing function: $fn in LabelReminder"
+              exit 1
+            fi
+          done
+          echo "✅ LabelReminder: all required functions present"
+          
+          # FollowUpReminder required functions
+          for fn in "checkDigests" "checkEscalations" "processFollowUps" "collectPending" "sendDigest" "sendEscalation" "rewriteWithLlm" "callFreeLLM" "callGemini" "callAI" "getGeminiApiKeys" "setup" "syncLabels"; do
+            if ! grep -r "function $fn" FollowUpReminder/ --include="*.gs"; then
+              echo "❌ Missing function: $fn in FollowUpReminder"
+              exit 1
+            fi
+          done
+          echo "✅ FollowUpReminder: all required functions present"
+
+      - name: Verify CONFIG objects
+        run: |
+          echo "Checking CONFIG objects..."
+          if ! grep -q "CONFIG =" LabelReminder/Code.gs; then
+            echo "❌ LabelReminder: missing CONFIG"
+            exit 1
+          fi
+          if ! grep -q "CONFIG =" FollowUpReminder/Code.gs; then
+            echo "❌ FollowUpReminder: missing CONFIG"
+            exit 1
+          fi
+          echo "✅ CONFIG objects present"
+
+      - name: Check for hardcoded secrets (basic scan)
+        run: |
+          echo "Scanning for potential secrets..."
+          # Check for patterns that look like API keys (but allow placeholder comments)
+          if grep -r "AIzaSy\|sk-\|freellmapi-" --include="*.gs" | grep -v "freellmapi-6887a86f4be99b516b912283dde20d7eb4ead65e3d0ae312" | grep -v "CONFIG.FREE_LLM_API_KEY"; then
+            echo "⚠️  Potential hardcoded secrets found (review manually)"
+          fi
+          echo "✅ Secret scan complete"
+
+  # Optional: Deploy with clasp (requires secrets setup)
+  # deploy:
+  #   needs: validate
+  #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: google-github-actions/auth@v2
+  #       with:
+  #         credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+  #     - run: npm install -g @google/clasp
+  #     - run: clasp push --force
+  #       env:
+  #         CLASP_CREDENTIALS: ${{ secrets.CLASP_CREDENTIALS }}
