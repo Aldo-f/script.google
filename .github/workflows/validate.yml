@@ -1,5 +1,4 @@
 name: Validate Google Apps Script
-
 on:
   push:
     branches: [main]
@@ -27,18 +26,23 @@ jobs:
           echo "Checking JavaScript syntax..."
           for file in $(find . -name "*.gs" -not -path "./.clasp/*" -not -path "./node_modules/*"); do
             echo "  Checking $file"
-            # Wrap in IIFE to catch syntax errors, replace Apps Script globals
-            node --check <(sed \
+            tmpfile=$(mktemp)
+            sed \
               -e 's/^\(\s*\)\/\/\s*@ts-check.*$//' \
               -e 's/Logger\.log/console.log/g' \
               -e 's/PropertiesService/{\n  getScriptProperties: () => ({ getProperty: () => "" })\n}/g' \
               -e 's/ScriptApp/{\n  getProjectTriggers: () => [],\n  newTrigger: () => ({ timeBased: () => ({ everyHours: () => ({ create: () => {} }) }) })\n}/g' \
-              -e 's/GmailApp/{\n  search: () => [],\n  getUserLabels: () => [],\n  getUserLabelByName: () => null,\n  createLabel: () => ({ addLabel: () => {}, removeLabel: () => {}, getName: () => "" }),\n  createDraft: () => {},\n  sendEmail: () => {},\n}/g' \
+              -e 's/GmailApp/{\n  search: () => [],\n  getUserLabels: () => [],\n  getUserLabelByName: () => null,\n  createLabel: () => ({ addLabel: () => {}, removeLabel: () => {}, getName: "" }),\n  createDraft: () => {},\n  sendEmail: () => {},\n}/g' \
               -e 's/UrlFetchApp/{\n  fetch: () => ({ getResponseCode: () => 200, getContentText: () => "{}" })\n}/g' \
               -e 's/DriveApp/{\n  getFileById: () => ({ getAs: () => ({ setName: () => {} }), setTrashed: () => {} })\n}/g' \
-              -e 's/DocumentApp/{\n  create: () => ({ getId: () => "", getBody: () => ({ appendParagraph: () => ({ setHeading: () => {} }), appendPageBreak: () => {}, appendHorizontalRule: () => {}, saveAndClose: () => {} }) })\n}/g' \
+              -e 's/DocumentApp/{\n  create: () => ({ getId: ""; getBody: () => ({ appendParagraph: () => ({ setHeading: () => {} }), appendPageBreak: () => {}, appendHorizontalRule: () => {}, saveAndClose: () => {} }) })\n}/g' \
               -e 's/Utilities/{\n  formatDate: () => ""\n}/g' \
-              "$file" || exit 1)
+              "$file" > "$tmpfile"
+            if ! node --check "$tmpfile"; then
+              rm -f "$tmpfile"
+              exit 1
+            fi
+            rm -f "$tmpfile"
           done
           echo "✅ All .gs files parse successfully"
 
@@ -84,19 +88,4 @@ jobs:
           if grep -r "AIzaSy\|sk-\|freellmapi-" --include="*.gs" | grep -v "freellmapi-6887a86f4be99b516b912283dde20d7eb4ead65e3d0ae312" | grep -v "CONFIG.FREE_LLM_API_KEY"; then
             echo "⚠️  Potential hardcoded secrets found (review manually)"
           fi
-          echo "✅ Secret scan complete"
-
-  # Optional: Deploy with clasp (requires secrets setup)
-  # deploy:
-  #   needs: validate
-  #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: google-github-actions/auth@v2
-  #       with:
-  #         credentials_json: ${{ secrets.GCP_CREDENTIALS }}
-  #     - run: npm install -g @google/clasp
-  #     - run: clasp push --force
-  #       env:
-  #         CLASP_CREDENTIALS: ${{ secrets.CLASP_CREDENTIALS }}
+          echo "✅ Scan complete"
