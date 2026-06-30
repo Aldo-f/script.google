@@ -8,16 +8,20 @@ import { join } from 'path';
 
 const PROJECTS = ['LabelReminder', 'FollowUpReminder'];
 
+// Shared functions deployed to both projects via shared/AIProviders.gs
+const SHARED_FUNCTIONS = [
+  'getGeminiApiKeys', 'getFreeLLMApiKey',
+  'callFreeLLM', 'callGemini', 'callAI'
+];
+
 const REQUIRED_FUNCTIONS = {
   LabelReminder: [
     'checkReminders', 'autoPauseOnReply', 'previewReminders', 'dryRun',
-    'sendReminder', 'generateReminderText', 'getGeminiApiKeys',
-    'callFreeLLM', 'callGemini', 'callAI', 'setup'
+    'sendReminder', 'generateReminderText', 'setup'
   ],
   FollowUpReminder: [
     'checkDigests', 'checkEscalations', 'processFollowUps', 'collectPending',
-    'sendDigest', 'sendEscalation', 'rewriteWithLlm',
-    'callFreeLLM', 'callGemini', 'callAI', 'getGeminiApiKeys', 'setup', 'syncLabels'
+    'sendDigest', 'sendEscalation', 'rewriteWithLlm', 'setup', 'syncLabels'
   ],
 };
 
@@ -60,6 +64,36 @@ function checkConfig(code) {
 function main() {
   let allOk = true;
 
+  // 1. Validate shared/ directory
+  const sharedDir = join(process.cwd(), 'shared');
+  console.log('\n📦 Validating shared/AIProviders.gs...');
+  try {
+    const sharedFiles = readdirSync(sharedDir).filter(f => f.endsWith('.gs'));
+    for (const file of sharedFiles) {
+      const filePath = join(sharedDir, file);
+      const code = readFileSync(filePath, 'utf8');
+      console.log(`  Checking ${file}...`);
+      const syntax = checkSyntax(filePath);
+      if (!syntax.ok) {
+        console.error(`    ❌ Syntax error: ${syntax.error}`);
+        allOk = false;
+      } else {
+        console.log(`    ✅ Syntax OK`);
+      }
+      for (const fn of SHARED_FUNCTIONS) {
+        if (!code.includes(`function ${fn}`)) {
+          console.error(`    ❌ Missing shared function: ${fn}`);
+          allOk = false;
+        }
+      }
+      console.log(`    ✅ Shared functions present`);
+    }
+  } catch (err) {
+    console.error(`  ❌ Could not read shared/: ${err.message}`);
+    allOk = false;
+  }
+
+  // 2. Validate each project
   for (const project of PROJECTS) {
     const dir = join(process.cwd(), project);
     const files = readdirSync(dir).filter(f => f.endsWith('.gs'));

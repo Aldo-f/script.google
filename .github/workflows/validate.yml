@@ -25,7 +25,7 @@ jobs:
       - name: Validate syntax (Node.js parse)
         run: |
           echo "Checking JavaScript syntax..."
-          for file in $(find . -name "*.gs" -not -path "./.clasp/*"); do
+          for file in $(find . -name "*.gs" -not -path "./.clasp/*" -not -path "./node_modules/*"); do
             echo "  Checking $file"
             # Wrap in IIFE to catch syntax errors, replace Apps Script globals
             node --check <(sed \

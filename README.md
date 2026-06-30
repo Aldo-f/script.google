@@ -106,7 +106,30 @@ Every 6h: checkReminders()
 
 **Supported labels:** `remind-every/1week`, `remind-every/2weeks`, `remind-every/1month`, `remind-every/1year`, etc. (any number + day/week/month/year combination)
 
-**Uses Gemini API** for generating personalized reminders.
+**Uses AI** (Gemini → FreeLLMAPI waterfall) for generating personalized reminders.
+
+---
+
+## 🔑 Setup: Script Properties
+
+Both projects need the following **Script Properties** set in the Apps Script editor:
+
+1. Go to [script.google.com](https://script.google.com/home/projects) → open your project
+2. Click **Project Settings** (gear icon) → **Script Properties**
+3. Add:
+
+| Property | Description |
+|---|---|
+| `GEMINI_API_KEY` | Required. Comma-separated for multi-key fallback. |
+| `FREE_LLM_API_KEY` | Optional fallback. FreeLLMAPI key (self-hosted). |
+
+### AI Provider Waterfall
+
+```
+1. Gemini (multi-key fallback)  ← primary, tries keys in order
+2. FreeLLMAPI (self-hosted)     ← fallback if Gemini fails
+3. Fallback template             ← if both AI providers fail
+```
 
 ---
 
@@ -116,7 +139,7 @@ Every 6h: checkReminders()
 
 **APIs:**
 - Gmail API (read, labels, send)
-- Gemini API (AI reminders via UrlFetchApp)
+- Gemini / FreeLLMAPI (AI via UrlFetchApp)
 - Apps Script API (triggers)
 
 **Triggers:** Time-based, every 6 hours (`checkReminders` / `checkDigests` / `checkEscalations`)
@@ -131,13 +154,23 @@ Edit locally, test in the Apps Script editor, and commit.
 ```bash
 # Structure
 gmail-reminder-scripts/
+├── shared/
+│   └── AIProviders.gs     # Shared AI waterfall (deployed to both projects)
 ├── FollowUpReminder/
-│   ├── Code.gs          # Main script
-│   ├── Test.gs          # Tests
-│   └── appsscript.json  # Manifest
+│   ├── Code.gs            # Main script
+│   ├── Test.gs            # Tests
+│   └── appsscript.json    # Manifest
+│   └── AIProviders.test.gs# AI integration tests
 ├── LabelReminder/
-│   ├── Code.gs          # Main script
-│   └── appsscript.json  # Manifest
-├── README.md            # This file
-└── FLOW.md              # Detailed flow diagrams
+│   ├── Code.gs            # Main script
+│   ├── Test.gs            # Tests
+│   └── appsscript.json    # Manifest
+├── scripts/
+│   └── validate.js        # Local validation script
+├── .github/
+│   └── workflows/
+│       └── validate.yml   # CI syntax + function check
+├── README.md              # This file
+├── FLOW.md                # Detailed flow diagrams
+└── SPEC.md                # Architecture specs
 ```

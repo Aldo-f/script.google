@@ -1,0 +1,33 @@
+{
+  "name": "@thuis/electron-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "pnpm start",
+    "start": "electron .",
+    "build": "pnpm lint && pnpm run tsc && electron-builder",
+    "lint": "eslint . --ext .ts,.tsx",
+    "test": "jest",
+    "tsc": "tsc -p ."
+  },
+  "dependencies": {
+    "@thuis/core": "workspace:*",
+    "electron": "31.0.0",
+    "react": "^19",
+    "react-dom": "^19"
+  },
+  "devDependencies": {
+    "electron-builder": "24.13.3",
+    "typescript": "^5.6.2"
+  },
+  "build": {
+    "appId": "com.aldof.thuis.electron",
+    "files": ["dist/**/*", "public/**/*"],
+    "directories": {"output": "dist-electron"},
+    "mac": {"target": "dmg"},
+    "win": {"target": "nsis"},
+    "linux": {"target": ["AppImage", "deb"]}
+  }
+}

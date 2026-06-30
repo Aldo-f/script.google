@@ -1,0 +1,59 @@
+name: Sync to Google Apps Script
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install clasp
+        run: npm install -g @google/clasp
+
+      # --- Authentication Steps (Requires Secrets Configuration) ---
+      # NOTE: The following steps assume secrets are configured in GitHub.
+      # If clasp auth continues to fail, a different authentication method might be needed.
+
+      - name: Configure clasp authentication (using secrets)
+        env:
+          CLASP_CREDENTIALS: ${{ secrets.CLASP_CREDENTIALS }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          FREE_LLM_API_KEY: ${{ secrets.FREE_LLM_API_KEY }}
+        run: |
+          echo "Setting up clasp authentication..."
+          # Attempt to use existing token or re-authenticate if necessary.
+          # This part is tricky due to the local auth issues encountered previously.
+          # A more robust solution might involve service accounts or a CI-specific login flow.
+          echo "TODO: Implement robust clasp authentication for CI environment."
+          # Example: If a token is available as a secret, configure it.
+          # echo "${{ secrets.CLASP_TOKEN }}  > ~/.clasprc.json" # Example, actual format may vary
+          # Or, if a CI login command exists, use it here.
+
+      # --- Push to Google Apps Script ---
+
+      - name: Push LabelReminder project
+        env:
+          CLASP_CREDENTIALS: ${{ secrets.CLASP_CREDENTIALS }}
+        run: |
+          echo "Pushing LabelReminder project..."
+          # The following command needs to be verified to work correctly in CI
+          # and with proper authentication.
+          npx @google/clasp push --force --rootDir /home/aldo/projects/script.google/LabelReminder
+
+      - name: Push FollowUpReminder project
+        env:
+          CLASP_CREDENTIALS: ${{ secrets.CLASP_CREDENTIALS }}
+        run: |
+          echo "Pushing FollowUpReminder project..."
+          # The following command needs to be verified to work correctly in CI
+          # and with proper authentication.
+          npx @google/clasp push --force --rootDir /home/aldo/projects/script.google/FollowUpReminder

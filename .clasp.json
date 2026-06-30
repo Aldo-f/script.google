@@ -6,8 +6,10 @@
   "rootDir": ".",
   "fileExtension": ".gs",
   "filePushOrder": [
+    "shared/AIProviders.gs",
     "LabelReminder/appsscript.json",
     "LabelReminder/Code.gs",
+    "LabelReminder/Test.gs",
     "FollowUpReminder/appsscript.json",
     "FollowUpReminder/Code.gs",
     "FollowUpReminder/Test.gs",
