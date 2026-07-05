@@ -1,0 +1,43 @@
+LabelReminder/Code.gs
+  s_30f92c71876911::t_0c7659ace22a6f 114-129
+  s_30f92c71876911::t_865b8ad0bab3be 304-324
+  s_30f92c71876911::t_08913b35d92f0f 298
+LabelReminder/Test.gs
+  s_30f92c71876911::t_6860ba82031821 25
+  s_30f92c71876911::t_5918e9d026874c 264-290
+  s_30f92c71876911::t_3416d1c98f60dc 59,65
+shared/AIProviders.gs
+  s_007daf6f45355b::t_f26ad7e564b94b 31,35
+  s_007daf6f45355b::t_315b6b1de99d6e 106
+  s_007daf6f45355b::t_97424b56de9375 11-12
+FollowUpReminder/.clasp.json
+  s_007daf6f45355b::t_46ada89637885d 2-3,9-10
+  s_007daf6f45355b::t_cbde7396dc754a 4-8
+LabelReminder/.clasp.json
+  s_007daf6f45355b::t_d50c14484cbab6 4-7
+  s_007daf6f45355b::t_15785301da0d60 2-3,8-9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "7a9f7b53b0365efa7bbc806103dbb0c9ba2dc273",
+  "prompts": {},
+  "sessions": {
+    "s_007daf6f45355b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_0d83dba9fffezcyXR8PfnxkGnz",
+        "model": "unknown"
+      },
+      "human_author": "Aldo <aldo.fieuw@gmail.com>"
+    },
+    "s_30f92c71876911": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_0d85995daffehw673oLYrPy9kQ",
+        "model": "unknown"
+      },
+      "human_author": "Aldo <aldo.fieuw@gmail.com>"
+    }
+  }
+}
