@@ -111,6 +111,22 @@ function getLastSentByMeDate(thread) {
   return thread.getLastMessageDate();
 }
 
+/**
+ * Laatste bericht in de thread dat NIET door Aldo verzonden is.
+ * Hiermee kunnen we een reply sturen op het bericht van de ontvanger,
+ * zodat de reminder als een antwoord verschijnt (met quote van origineel).
+ */
+function getLastNonOwnMessage(thread) {
+  const messages = thread.getMessages();
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const from = messages[i].getFrom();
+    if (!from.toLowerCase().includes(CONFIG.MY_EMAIL.toLowerCase())) {
+      return messages[i];
+    }
+  }
+  return null;
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // REPLY DETECTIE — auto pauzeren
 // ════════════════════════════════════════════════════════════════════════════
@@ -279,12 +295,33 @@ function extractName(fromHeader) {
 // ════════════════════════════════════════════════════════════════════════════
 
 function cleanSubject(subject) {
-  const prefixes = /^(\s*(?:Re|RE|Re|Fwd|FW|Antw|AW|Doorst|SV|VS|TR|REF?)\s*[:/-]\s*)+/;
+  const prefixes = /^(\s*(?:Re|RE|Re|Fwd|FW|Antw|AW|AWV|Doorst|SV|VS|TR|REF?)\s*[:/-]\s*)+/;
   let cleaned = subject.replace(prefixes, '').trim();
   return cleaned || subject;
 }
 
 function sendReminder({ to, originalSubject, body, thread }) {
+  // Probeer te reply-en op het laatste bericht van de ontvanger,
+  // zodat de reminder als een antwoord verschijnt (met quote).
+  const replyToMsg = thread ? getLastNonOwnMessage(thread) : null;
+
+  if (replyToMsg) {
+    if (CONFIG.DRY_RUN) {
+      log(`[DRY-RUN] (reply) → ${replyToMsg.getFrom()} | Re: ${originalSubject}`);
+      log(`[DRY-RUN] Body:\n${body}`);
+      return;
+    }
+    if (CONFIG.CREATE_DRAFTS) {
+      replyToMsg.createDraftReply(body);
+      log(`[DRAFT] (reply) → ${replyToMsg.getFrom()} | Re: ${originalSubject}`);
+    } else {
+      replyToMsg.reply(body);
+      log(`[SENT] (reply) → ${replyToMsg.getFrom()} | Re: ${originalSubject}`);
+    }
+    return;
+  }
+
+  // Fallback: geen bericht van ontvanger → verzenden als nieuwe mail (oude gedrag)
   const subject = `Re: ${cleanSubject(originalSubject)}`;
 
   if (CONFIG.DRY_RUN) {

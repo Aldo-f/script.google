@@ -22,6 +22,7 @@ function runAllTests() {
     testHasRecipientReplied,
     testGetLastSentByMeDate,
     testFindReminderRecipient,
+    testGetLastNonOwnMessage,
   ].forEach(suite => {
     try {
       suite(results);
@@ -55,12 +56,13 @@ function makeLabel(name) {
   };
 }
 
-function makeMessage(from, date, body, subject) {
+function makeMessage(from, date, body, subject, to) {
   return {
     getFrom:       function() { return from || 'sender@example.com'; },
     getDate:       function() { return date || new Date(); },
     getPlainBody:  function() { return body || 'Test body content that is long enough to pass the 50-char check.'; },
     getSubject:    function() { return subject || 'Test Subject'; },
+    getTo:         function() { return to || 'recipient@example.com'; },
   };
 }
 
@@ -257,6 +259,33 @@ function testGetLastSentByMeDate(results) {
   const noReply  = makeThread([makeMessage(other, older)]);
   const result2  = getLastSentByMeDate(noReply);
   results.push(assert('getLastSentByMeDate: falls back to last message date', result2.getTime() === older.getTime()));
+}
+
+// ─── MOCK: getLastNonOwnMessage ───────────────────────────────────────────────
+
+function testGetLastNonOwnMessage(results) {
+  const my    = CONFIG.MY_EMAIL;
+  const other = 'burger@example.com';
+
+  const myMsg     = makeMessage(my);
+  const otherMsg  = makeMessage(other);
+
+  const mixed     = makeThread([myMsg, otherMsg, myMsg]);
+  const noOther   = makeThread([myMsg, myMsg]);
+  const onlyOther = makeThread([otherMsg]);
+
+  results.push(assert('getLastNonOwnMessage: finds last non-own message',
+    getLastNonOwnMessage(mixed) === otherMsg));
+  results.push(assert('getLastNonOwnMessage: all own messages → null',
+    getLastNonOwnMessage(noOther) === null));
+  results.push(assert('getLastNonOwnMessage: only non-own message',
+    getLastNonOwnMessage(onlyOther) === otherMsg));
+
+  // Multiple non-own messages — should find the LAST one
+  const otherMsg2 = makeMessage('tweede@example.com');
+  const multi     = makeThread([myMsg, otherMsg, myMsg, otherMsg2]);
+  results.push(assert('getLastNonOwnMessage: last of multiple non-own',
+    getLastNonOwnMessage(multi) === otherMsg2));
 }
 
 // ─── MOCK: findReminderRecipient ──────────────────────────────────────────────

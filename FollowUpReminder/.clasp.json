@@ -1,3 +1,10 @@
 {
-  "scriptId": "1BC9oGoHqrkQMO6fUIzTT7Hs_X4tRMB4ZOjXUrSUgMwa6NLUJ73GZLT_u"
+  "scriptId": "1BC9oGoHqrkQMO6fUIzTT7Hs_X4tRMB4ZOjXUrSUgMwa6NLUJ73GZLT_u",
+  "filePushOrder": [
+    "AIProviders.gs",
+    "appsscript.json",
+    "Code.gs",
+    "Test.gs",
+    "AIProviders.test.gs"
+  ]
 }
