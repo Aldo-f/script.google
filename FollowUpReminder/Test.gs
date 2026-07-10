@@ -51,6 +51,7 @@ function runAllTests() {
     testBuildFallbackReminder,
     testHasReply,
     testHasCrossThreadReply,
+    testExtractTicketCodeForCrossCheck,
     testBuildGroupedOverview,
     testBuildFallbackDigest,
     testBuildEscalationBody,
@@ -261,6 +262,48 @@ function testHasCrossThreadReply(results) {
     .filter(t => t.getId() !== 'abc')
     .some(t => t.getMessages().some(m => m.getFrom().toLowerCase().includes(watched)));
   results.push(assert('hasCrossThreadReply: mobiliteit sender → true', rightSender === true));
+}
+
+// ─── PURE: extractTicketCodeForCrossCheck ─────────────────────────────────────
+
+function testExtractTicketCodeForCrossCheck(results) {
+  const watchedLower = 'mobiliteit@merelbeke-melle.be';
+  const awvSender    = 'awv@wegenenverkeer.be';
+
+  function makeMockThread(subject, messages) {
+    return {
+      getFirstMessageSubject: () => subject,
+      getMessages:           () => messages,
+    };
+  }
+  function makeMsg(from) { return { getFrom: () => from }; }
+
+  // Ticket in subject, but only AWV sender → null
+  const t1 = makeMockThread('FW: (KM-2026-08317)', [makeMsg(awvSender)]);
+  results.push(assert('extractTicketCodeForCrossCheck: AWV only → null',
+    extractTicketCodeForCrossCheck(t1, watchedLower) === null));
+
+  // Ticket in subject, watched address replied → returns code
+  const t2 = makeMockThread('FW: (KM-2026-08647)', [makeMsg(awvSender), makeMsg('mobiliteit@merelbeke-melle.be')]);
+  results.push(assert('extractTicketCodeForCrossCheck: watched replied → code',
+    extractTicketCodeForCrossCheck(t2, watchedLower) === 'KM-2026-08647'));
+
+  // No ticket code in subject → null
+  const t3 = makeMockThread('Geen ticket', [makeMsg(awvSender)]);
+  results.push(assert('extractTicketCodeForCrossCheck: no code → null',
+    extractTicketCodeForCrossCheck(t3, watchedLower) === null));
+
+  // Case-insensitive email match
+  const t4 = makeMockThread('Re: (KM-2026-09219)', [makeMsg('MOBILITEIT@merelbeke-melle.be')]);
+  results.push(assert('extractTicketCodeForCrossCheck: case insensitive match',
+    extractTicketCodeForCrossCheck(t4, watchedLower) === 'KM-2026-09219'));
+
+  // Multiple messages, only last one is from watched
+  const t5 = makeMockThread('FW: (KM-2026-00123)', [
+    makeMsg(awvSender), makeMsg(CONFIG.MY_EMAIL), makeMsg('mobiliteit@merelbeke-melle.be'),
+  ]);
+  results.push(assert('extractTicketCodeForCrossCheck: third-party then watched → code',
+    extractTicketCodeForCrossCheck(t5, watchedLower) === 'KM-2026-00123'));
 }
 
 // ─── PURE: buildGroupedOverview ───────────────────────────────────────────────

@@ -275,33 +275,47 @@ function collectPending(address, cutoff, escalatedIds, closedIds, countMap) {
 }
 
 /**
- * Batch version of hasCrossThreadReply — does ONE Gmail search for all ticket codes.
+ * Batch version of hasCrossThreadReply — searches Gmail with batched OR queries
+ * to stay within the ~2048-char query limit (~50 codes per batch).
  * Returns a Set of ticket codes that have cross-thread replies from the watched address.
  */
 function batchCheckCrossThreadReply(ticketCodes, watchedAddress) {
   if (ticketCodes.length === 0) return new Set();
 
-  // Build a combined query: "KM-2026-08317" OR "KM-2026-08647" OR ...
-  const query = ticketCodes.map(c => `"${c}"`).join(' OR ');
-  const threads = GmailApp.search(query);
+  const BATCH_SIZE = 50;
   const watchedLower = watchedAddress.toLowerCase();
   const repliedCodes = new Set();
 
-  // We need the ticket code for each thread — extract from subject
-  threads.forEach(thread => {
-    const subject = subjectOf(thread);
-    const code    = extractTicketCode(subject);
-    if (!code) return;
+  // Process in batches of 50 to avoid Gmail query length limits
+  for (let i = 0; i < ticketCodes.length; i += BATCH_SIZE) {
+    const batch = ticketCodes.slice(i, i + BATCH_SIZE);
+    const query = batch.map(c => `"${c}"`).join(' OR ');
+    const threads = GmailApp.search(query);
 
-    const hasReplyFromWatched = thread.getMessages().some(msg =>
-      msg.getFrom().toLowerCase().includes(watchedLower)
-    );
-    if (hasReplyFromWatched) {
-      repliedCodes.add(code);
-    }
-  });
+    threads.forEach(thread => {
+      const ticketCode = extractTicketCodeForCrossCheck(thread, watchedLower);
+      if (ticketCode) repliedCodes.add(ticketCode);
+    });
+  }
 
   return repliedCodes;
+}
+
+/**
+ * Pure-function helper: given a Gmail thread, extracts the ticket code
+ * and checks if the watched address replied in it.
+ * Returns the ticket code (string) or null.
+ * This is a pure function (no GmailApp calls) — testable with mocks.
+ */
+function extractTicketCodeForCrossCheck(thread, watchedLower) {
+  const subject = subjectOf(thread);
+  const code    = extractTicketCode(subject);
+  if (!code) return null;
+
+  const hasReplyFromWatched = thread.getMessages().some(msg =>
+    msg.getFrom().toLowerCase().includes(watchedLower)
+  );
+  return hasReplyFromWatched ? code : null;
 }
 
 // ─── DELIVERY ─────────────────────────────────────────────────────────────────
