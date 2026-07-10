@@ -35,7 +35,8 @@ jobs:
               -e 's/GmailApp/{\n  search: () => [],\n  getUserLabels: () => [],\n  getUserLabelByName: () => null,\n  createLabel: () => ({ addLabel: () => {}, removeLabel: () => {}, getName: "" }),\n  createDraft: () => {},\n  sendEmail: () => {},\n}/g' \
               -e 's/UrlFetchApp/{\n  fetch: () => ({ getResponseCode: () => 200, getContentText: () => "{}" })\n}/g' \
               -e 's/DriveApp/{\n  getFileById: () => ({ getAs: () => ({ setName: () => {} }), setTrashed: () => {} })\n}/g' \
-              -e 's/DocumentApp/{\n  create: () => ({ getId: ""; getBody: () => ({ appendParagraph: () => ({ setHeading: () => {} }), appendPageBreak: () => {}, appendHorizontalRule: () => {}, saveAndClose: () => {} }) })\n}/g' \
+              -e 's/DocumentApp/{\n  create: () => ({ getId: ""; getBody: () => ({ appendParagraph: () => ({ setHeading: () => {} }), appendPageBreak: () => {}, appendHorizontalLine: () => {}, saveAndClose: () => {} }) })\n}/g' \
+              -e 's/HtmlService/{\n  createHtmlOutput: () => ({ getAs: () => ({ setName: () => {} }) })\n}/g' \
               -e 's/Utilities/{\n  formatDate: () => ""\n}/g' \
               "$file" > "$tmpfile"
             if ! node --check "$tmpfile"; then

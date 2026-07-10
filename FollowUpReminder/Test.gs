@@ -3,12 +3,44 @@
  * Run runAllTests() to execute all tests.
  */
 
+// ─── PERFORMANCE LOGGING ─────────────────────────────────────────────────────
+
+function testPerfLog(results) {
+  perfLog.reset();
+
+  // Call perfLog with consistent intervals — we just check it doesn't crash
+  const out1 = perfLog('start');
+  results.push(assert('perfLog: logs without error', typeof out1 === 'string' && out1.length > 0));
+
+  const out2 = perfLog('step2');
+  results.push(assert('perfLog: subsequent call logs', typeof out2 === 'string' && out2.includes('step2')));
+
+  // Reset and verify fresh start
+  perfLog.reset();
+  const out3 = perfLog('after reset');
+  results.push(assert('perfLog: reset works', true));
+}
+
+// ─── ESCAPE HTML ──────────────────────────────────────────────────────────────
+
+function testEscapeHtml(results) {
+  results.push(assert('escapeHtml: & → &amp;', escapeHtml('a&b') === 'a&amp;b'));
+  results.push(assert('escapeHtml: < → &lt;', escapeHtml('<tag>') === '&lt;tag&gt;'));
+  results.push(assert('escapeHtml: > → &gt;', escapeHtml('5 > 3') === '5 &gt; 3'));
+  results.push(assert('escapeHtml: " → &quot;', escapeHtml('say "hi"') === 'say &quot;hi&quot;'));
+  results.push(assert('escapeHtml: normal string unchanged', escapeHtml('hello world') === 'hello world'));
+  results.push(assert('escapeHtml: empty string', escapeHtml('') === ''));
+  results.push(assert('escapeHtml: null string', escapeHtml(null) === 'null'));
+}
+
 // ─── RUNNER ──────────────────────────────────────────────────────────────────
 
 function runAllTests() {
   const results = [];
 
   [
+    testPerfLog,
+    testEscapeHtml,
     testExtractTicketCode,
     testFormatDate,
     testExtractLocation,

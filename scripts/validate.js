@@ -38,6 +38,7 @@ function checkSyntax(filePath) {
       const UrlFetchApp = { fetch: () => ({ getResponseCode: () => 200, getContentText: () => '{}' }) };
       const DriveApp = { getFileById: () => ({ getAs: () => ({ setName: () => {} }), setTrashed: () => {} }) };
       const DocumentApp = { create: () => ({ getId: () => '', getBody: () => ({ appendParagraph: () => ({ setHeading: () => {} }), appendPageBreak: () => {}, appendHorizontalRule: () => {}, saveAndClose: () => {} }) }) };
+      const HtmlService = { createHtmlOutput: () => ({ getAs: () => ({ setName: () => {} }) }) };
       const Utilities = { formatDate: () => '' };
       ${code}
     `);
