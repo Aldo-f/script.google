@@ -1,0 +1,23 @@
+FollowUpReminder/Code.gs
+  s_ea82058a12db06::t_4a68264daab6f2 278-279,285,289-293,295-299,304-318
+  s_ea82058a12db06::t_0f40e428efc821 319-320
+FollowUpReminder/Test.gs
+  s_ea82058a12db06::t_b77c58c2c7545d 54
+  s_ea82058a12db06::t_2533f4f4fe697d 267-308
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "fc0a2ee475ac73f6fee50cabd0e85be3639b73cd",
+  "prompts": {},
+  "sessions": {
+    "s_ea82058a12db06": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_0c1e5ff88ffeMQTwrmT2Aqfn51",
+        "model": "unknown"
+      },
+      "human_author": "Aldo <aldo.fieuw@gmail.com>"
+    }
+  }
+}
