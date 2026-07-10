@@ -192,6 +192,31 @@ function detectLanguage(text) {
 // AI REMINDER — uses callAI() from shared/AIProviders.gs
 // ════════════════════════════════════════════════════════════════════════════
 
+/**
+ * Verwijdert AI-toelichting/redenering uit het antwoord.
+ * Sommige modellen geven naast de body ook uitleg — dat wordt hier weggefilterd.
+ */
+function cleanAIResponse(text) {
+  if (!text) return text;
+
+  // Verwijder alles vanaf een standalone "---" lijn (sectiescheider)
+  const sepIdx = text.search(/^---\s*$/m);
+  if (sepIdx >= 0) {
+    text = text.substring(0, sepIdx).trim();
+  }
+
+  // Verwijder markdown bold-kopjes zoals "**E-mailbody (max 100 woorden)**"
+  text = text.replace(/^\*{2}.+\*{2}\s*$/gm, '').trim();
+
+  // Verwijder lijnen die beginnen met "Redenering", "Toelichting", "Uitleg", etc.
+  text = text.replace(/^#*\s*(Redenering|Toelichting|Uitleg|Explanation|Reasoning).*/gim, '').trim();
+
+  // Maximaal 2 opeenvolgende newlines
+  text = text.replace(/\n{3,}/g, '\n\n');
+
+  return text;
+}
+
 function generateReminderText(originalSubject, originalSnippet, senderName, lang) {
   const langInstruction = lang === 'nl'
       ? 'Schrijf de e-mail in het Nederlands.'
@@ -205,19 +230,23 @@ function generateReminderText(originalSubject, originalSnippet, senderName, lang
     'Vraag beleefd of ze al de tijd hebben gehad om te antwoorden.',
     'Toon begrip, geen urgentie. Houd het kort en professioneel.',
     '',
+    'BELANGRIJK: Geef ENKEL de e-mail body. Geen toelichting, geen uitleg,',
+    'geen redenering, geen kopjes, geen markeringen, geen scheidingslijnen.',
+    'Niet vertellen wat je gedaan hebt of waarom. Alleen de e-mail tekst zelf.',
+    '',
     'Context:',
     `- Origineel onderwerp: "${originalSubject}"`,
     `- Korte inhoud: "${originalSnippet}"`,
     '',
-    `Enkel de body, geen onderwerpregel. Maximaal 100 woorden.`,
+    `Maximaal 100 woorden. Geen onderwerpregel.`,
     `Sluit af met "Met vriendelijke groeten,\n${CONFIG.SENDER_ALIAS}"`,
   ].join('\n');
 
   try {
-    return callAI(prompt);
+    return cleanAIResponse(callAI(prompt));
   } catch (err) {
     log(`[WARN] All AI providers failed (${err.message}), using fallback`);
-    return buildFallbackText(senderName, originalSubject, lang);
+    return cleanAIResponse(buildFallbackText(senderName, originalSubject, lang));
   }
 }
 
@@ -263,20 +292,30 @@ function buildFallbackText(senderName, subject, lang) {
 // ════════════════════════════════════════════════════════════════════════════
 
 function findReminderRecipient(thread) {
+  // 1. Search for a sender that is neither us nor an ignored sender (e.g. AWV)
   const messages = thread.getMessages();
   for (const msg of messages) {
     const from = msg.getFrom();
-    if (!from.toLowerCase().includes(CONFIG.MY_EMAIL.toLowerCase())) {
-      return {
-        email: extractEmail(from),
-        name: extractName(from) || 'there',
-      };
-    }
+    if (from.toLowerCase().includes(CONFIG.MY_EMAIL.toLowerCase())) continue;
+    if (isIgnoredSender(from)) continue;
+    return {
+      email: extractEmail(from),
+      name: extractName(from) || 'there',
+    };
   }
-  const first = messages[0];
-  const toField = first.getTo();
-  const toEmail = extractEmail(toField);
-  return { email: toEmail || CONFIG.MY_EMAIL, name: 'there' };
+  // 2. If no appropriate sender found, fall back to the primary recipient in the To field
+  const firstMsg = messages[0];
+  const toField = firstMsg.getTo();
+  const addresses = toField.split(/[;,\s]+/).filter(a => a.trim() !== '');
+  for (const addr of addresses) {
+    const trimmed = addr.trim();
+    const lower = trimmed.toLowerCase();
+    if (lower.includes(CONFIG.MY_EMAIL.toLowerCase())) continue;
+    if (isIgnoredSender(trimmed)) continue;
+    return { email: extractEmail(trimmed), name: 'there' };
+  }
+  // 3. As a last resort, return the first address in To
+  return { email: extractEmail(toField), name: 'there' };
 }
 
 function extractEmail(fromHeader) {
