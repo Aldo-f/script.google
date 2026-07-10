@@ -1,0 +1,34 @@
+.omo/plans/ai-email-body-fix.md
+  s_ea82058a12db06::t_fb4caeeacd43e6 1-27,31-32,36-38
+  s_ea82058a12db06::t_4c7f85b035a3db 28-30,33-35
+LabelReminder/Code.gs
+  s_e5dfb2d80099bf::t_e412413915c836 233-236,241
+  s_e5dfb2d80099bf::t_32208a6e260f38 249
+  s_e5dfb2d80099bf::t_97dc6bfb251661 246
+  s_e5dfb2d80099bf::t_d1dc9c8311cf52 195-219
+  s_e5dfb2d80099bf::t_84241e8e20542a 295,299-315,317-318
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.11",
+  "base_commit_sha": "6e67ca591451265557cb27a69f5cb7b2e7080ac5",
+  "prompts": {},
+  "sessions": {
+    "s_e5dfb2d80099bf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_0b3e4ffd9ffeZDEnjbBAtFBTPd",
+        "model": "unknown"
+      },
+      "human_author": "Aldo <aldo.fieuw@gmail.com>"
+    },
+    "s_ea82058a12db06": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_0c1e5ff88ffeMQTwrmT2Aqfn51",
+        "model": "unknown"
+      },
+      "human_author": "Aldo <aldo.fieuw@gmail.com>"
+    }
+  }
+}
