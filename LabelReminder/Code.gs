@@ -112,7 +112,8 @@ function getLastSentByMeDate(thread) {
 }
 
 /**
- * Laatste bericht in de thread dat NIET door Aldo verzonden is.
+ * Laatste bericht in de thread dat NIET door Aldo verzonden is
+ * en NIET van een genegeerde afzender (bv. AWV) komt.
  * Hiermee kunnen we een reply sturen op het bericht van de ontvanger,
  * zodat de reminder als een antwoord verschijnt (met quote van origineel).
  */
@@ -120,9 +121,9 @@ function getLastNonOwnMessage(thread) {
   const messages = thread.getMessages();
   for (let i = messages.length - 1; i >= 0; i--) {
     const from = messages[i].getFrom();
-    if (!from.toLowerCase().includes(CONFIG.MY_EMAIL.toLowerCase())) {
-      return messages[i];
-    }
+    if (from.toLowerCase().includes(CONFIG.MY_EMAIL.toLowerCase())) continue;
+    if (isIgnoredSender(from)) continue;
+    return messages[i];
   }
   return null;
 }

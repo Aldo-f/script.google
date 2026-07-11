@@ -1,5 +1,6 @@
 {
   "scriptId": "1BC9oGoHqrkQMO6fUIzTT7Hs_X4tRMB4ZOjXUrSUgMwa6NLUJ73GZLT_u",
+  "projectId": "lexical-helix-344",
   "filePushOrder": [
     "AIProviders.gs",
     "appsscript.json",
