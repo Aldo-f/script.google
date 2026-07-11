@@ -1,0 +1,21 @@
+.gitignore
+  s_ea82058a12db06::t_dd0259f10f3ba2 3-4
+README.md
+  s_ea82058a12db06::t_1e6ab615223053 176-227
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "a1d4ce4b89341958af7c51f01e39b7f286f7b64a",
+  "prompts": {},
+  "sessions": {
+    "s_ea82058a12db06": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_0c1e5ff88ffeMQTwrmT2Aqfn51",
+        "model": "unknown"
+      },
+      "human_author": "Aldo <aldo.fieuw@gmail.com>"
+    }
+  }
+}
