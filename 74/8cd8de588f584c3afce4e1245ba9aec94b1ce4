@@ -1,0 +1,60 @@
+scripts/validate.js
+  s_0c7eeaa39b9f68::t_dd45757f31e0f1 24
+FollowUpReminder/AIProviders.test.gs
+  s_0c7eeaa39b9f68::t_8e4626d5db4da6 147
+  s_0c7eeaa39b9f68::t_0e92dc0981c8f3 118,120-121,123,126-131,133
+LabelReminder/Code.gs
+  s_e5dfb2d80099bf::t_db6d79e67b0bf1 309-312,314-315,317,321-333
+  s_e5dfb2d80099bf::t_8ad8dbe5c7e792 334,357,360,362,364-367,370-371,374,376-377,394-399,404-414,416,420,422-428,444,446-447,464-466,468-487
+  s_e5dfb2d80099bf::t_b35dd8fd798dcb 115,123-125
+  s_e5dfb2d80099bf::t_c7730a2fbfe4f8 358-359,361,363,368-369,372-373,375,378-393
+  s_e5dfb2d80099bf::t_05bd264cc2266d 415,417-419,421
+  s_e5dfb2d80099bf::t_5e6f3ffbae8860 467
+  s_e5dfb2d80099bf::t_4b8fea8cef42f1 547
+  s_e5dfb2d80099bf::t_dba6cc1e5f7b50 335
+  s_e5dfb2d80099bf::t_d3308e7da074a7 488
+FollowUpReminder/appsscript.json
+  s_0c7eeaa39b9f68::t_d10ee4ad439ead 4
+LabelReminder/appsscript.json
+  s_e5dfb2d80099bf::t_8a0f12256d9d26 3-11,18
+FollowUpReminder/Code.gs
+  s_0c7eeaa39b9f68::t_876feb2f3fe602 804-809,811-815
+  s_0c7eeaa39b9f68::t_187087d1f1c51b 368-378
+  s_0c7eeaa39b9f68::t_7a97c93a030d15 349-354
+  s_0c7eeaa39b9f68::t_d7618f1f75fb72 392,396-399,401,403-407,409-410,414-422,424-425,429-441
+  s_0c7eeaa39b9f68::t_ecd2942f6ad3a1 442-443
+.omo/plans/fix-ai-email-body.md
+  s_ea82058a12db06::t_9e275110316eba 1-79
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "748cd8de588f584c3afce4e1245ba9aec94b1ce4",
+  "prompts": {},
+  "sessions": {
+    "s_0c7eeaa39b9f68": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_0afa38e5dffe2SXEzibnXuwWFG",
+        "model": "unknown"
+      },
+      "human_author": "Aldo <aldo.fieuw@gmail.com>"
+    },
+    "s_e5dfb2d80099bf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_0b3e4ffd9ffeZDEnjbBAtFBTPd",
+        "model": "unknown"
+      },
+      "human_author": "Aldo <aldo.fieuw@gmail.com>"
+    },
+    "s_ea82058a12db06": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_0c1e5ff88ffeMQTwrmT2Aqfn51",
+        "model": "unknown"
+      },
+      "human_author": "Aldo <aldo.fieuw@gmail.com>"
+    }
+  }
+}
