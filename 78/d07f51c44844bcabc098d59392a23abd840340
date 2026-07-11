@@ -1,0 +1,29 @@
+FollowUpReminder/appsscript.json
+  s_bbdd28c8835934::t_7ec8e39e272b8f 4-10
+FollowUpReminder/Code.gs
+  s_e0976c0fbaf91e::t_2450b0463d0344 374
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "78d07f51c44844bcabc098d59392a23abd840340",
+  "prompts": {},
+  "sessions": {
+    "s_bbdd28c8835934": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_0af9821e4ffehSAcYtI98PF12C",
+        "model": "unknown"
+      },
+      "human_author": "Aldo <aldo.fieuw@gmail.com>"
+    },
+    "s_e0976c0fbaf91e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_0af900931ffeJZMFQyJjxPAJCG",
+        "model": "unknown"
+      },
+      "human_author": "Aldo <aldo.fieuw@gmail.com>"
+    }
+  }
+}
