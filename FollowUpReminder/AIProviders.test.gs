@@ -115,26 +115,22 @@ function testGenerateReminderText() {
 }
 
 /**
- * Test rewriteWithLlm (FollowUpReminder)
+ * Test rewriteProse (FollowUpReminder) — strict prompt, no chain-of-thought
  */
-function testRewriteWithLlm() {
-  const body = `Beste,
+function testRewriteProse() {
+  const prose = `Geachte,
 
-Er zijn 2 openstaande meldingen:
-- ABC-1234 (5 dagen)
-- XYZ-5678 (3 dagen)
-
-Met vriendelijke groeten,
-Aldo Fieuw`;
+Hierbij een overzicht van de meldingen die ik via AWV aan uw dienst doorzond en waarop ik tot op heden nog geen reactie of statusupdate ontving:`;
 
   try {
-    const result = rewriteWithLlm(body);
-    log(`rewriteWithLlm result: ${result.substring(0, 150)}...`);
-    console.assert(result.includes('vriendelijke groeten'), 'Should preserve closing');
-    console.assert(result.length > body.length * 0.5, 'Should not be empty');
-    log('✅ testRewriteWithLlm passed');
+    const result = rewriteProse(prose);
+    log(`rewriteProse result: ${result.substring(0, 200)}...`);
+    console.assert(result.length > 0, 'Should return non-empty');
+    console.assert(!result.includes('```'), 'Should strip markdown fences');
+    console.assert(result.length <= prose.length * 3, 'Should not exceed 3x input length');
+    log('✅ testRewriteProse passed');
   } catch (err) {
-    log(`❌ testRewriteWithLlm failed: ${err.message}`);
+    log(`❌ testRewriteProse failed: ${err.message}`);
   }
 }
 
@@ -148,6 +144,6 @@ function runAllAITests() {
   testCallGemini();
   testCallAIWaterfall();
   testGenerateReminderText();
-  testRewriteWithLlm();
+  testRewriteProse();
   log('=== Tests Complete ===');
 }

@@ -112,8 +112,7 @@ function getLastSentByMeDate(thread) {
 }
 
 /**
- * Laatste bericht in de thread dat NIET door Aldo verzonden is
- * en NIET van een genegeerde afzender (bv. AWV) komt.
+ * Laatste bericht in de thread dat NIET door Aldo verzonden is.
  * Hiermee kunnen we een reply sturen op het bericht van de ontvanger,
  * zodat de reminder als een antwoord verschijnt (met quote van origineel).
  */
@@ -121,9 +120,9 @@ function getLastNonOwnMessage(thread) {
   const messages = thread.getMessages();
   for (let i = messages.length - 1; i >= 0; i--) {
     const from = messages[i].getFrom();
-    if (from.toLowerCase().includes(CONFIG.MY_EMAIL.toLowerCase())) continue;
-    if (isIgnoredSender(from)) continue;
-    return messages[i];
+    if (!from.toLowerCase().includes(CONFIG.MY_EMAIL.toLowerCase())) {
+      return messages[i];
+    }
   }
   return null;
 }
@@ -307,16 +306,31 @@ function findReminderRecipient(thread) {
   // 2. If no appropriate sender found, fall back to the primary recipient in the To field
   const firstMsg = messages[0];
   const toField = firstMsg.getTo();
-  const addresses = toField.split(/[;,\s]+/).filter(a => a.trim() !== '');
-  for (const addr of addresses) {
-    const trimmed = addr.trim();
-    const lower = trimmed.toLowerCase();
+  // Extract all email addresses from the To field (handles "Name <email>" format)
+  const emails = extractAllEmails(toField);
+  for (const email of emails) {
+    const lower = email.toLowerCase();
     if (lower.includes(CONFIG.MY_EMAIL.toLowerCase())) continue;
-    if (isIgnoredSender(trimmed)) continue;
-    return { email: extractEmail(trimmed), name: 'there' };
+    if (isIgnoredSender(email)) continue;
+    return { email: email, name: 'there' };
   }
-  // 3. As a last resort, return the first address in To
+  // 3. As a last resort, return the To field as-is
   return { email: extractEmail(toField), name: 'there' };
+}
+
+/**
+ * Extract all email addresses from a header field (To, Cc, From).
+ * Handles "Name <email>" format and bare email addresses.
+ */
+function extractAllEmails(header) {
+  // 1. Try to find all <email> patterns
+  const angleMatches = [...header.matchAll(/<([^>]+)>/g)];
+  if (angleMatches.length > 0) {
+    return angleMatches.map(m => m[1].trim());
+  }
+  // 2. Fallback: find bare email pattern
+  const bareMatches = header.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g);
+  return bareMatches ? bareMatches.map(m => m.trim()) : [];
 }
 
 function extractEmail(fromHeader) {
@@ -340,12 +354,78 @@ function cleanSubject(subject) {
   return cleaned || subject;
 }
 
+/**
+ * Maakt een draft (of verzendt) via de Gmail API met aangepaste ontvanger,
+ * maar wel in dezelfde thread (met In-Reply-To voor correcte threading).
+ */
+function createReplyDraft(toEmail, subject, body, rfcMessageId, threadId) {
+  const token = ScriptApp.getOAuthToken();
+  const rawMessage = [
+    'To: ' + toEmail,
+    'Subject: ' + subject,
+    'Content-Type: text/plain; charset=UTF-8',
+    'MIME-Version: 1.0',
+    'In-Reply-To: ' + rfcMessageId,
+    'References: ' + rfcMessageId,
+    '',
+    body,
+  ].join('\r\n');
+
+  const raw = Utilities.base64EncodeWebSafe(
+    Utilities.newBlob(rawMessage, 'UTF-8').getBytes()
+  );
+
+  const isDraft = CONFIG.CREATE_DRAFTS;
+  const endpoint = isDraft
+    ? 'https://gmail.googleapis.com/gmail/v1/users/me/drafts'
+    : 'https://gmail.googleapis.com/gmail/v1/users/me/messages/send';
+
+  const payload = isDraft
+    ? JSON.stringify({ message: { raw: raw, threadId: threadId } })
+    : JSON.stringify({ raw: raw, threadId: threadId });
+
+  const response = UrlFetchApp.fetch(endpoint, {
+    method: 'post',
+    headers: { Authorization: 'Bearer ' + token },
+    contentType: 'application/json',
+    payload: payload,
+    muteHttpExceptions: true,
+  });
+
+  if (response.getResponseCode() !== 200) {
+    throw new Error('Gmail API error: ' + response.getContentText());
+  }
+}
+
 function sendReminder({ to, originalSubject, body, thread }) {
-  // Probeer te reply-en op het laatste bericht van de ontvanger,
-  // zodat de reminder als een antwoord verschijnt (met quote).
   const replyToMsg = thread ? getLastNonOwnMessage(thread) : null;
 
   if (replyToMsg) {
+    if (isIgnoredSender(replyToMsg.getFrom())) {
+      // Bericht van AWV (of andere genegeerde afzender) → reply naar de echte ontvanger
+      // via de Gmail API, zodat het in dezelfde thread blijft
+      const subject = `Re: ${cleanSubject(originalSubject)}`;
+
+      if (CONFIG.DRY_RUN) {
+        log(`[DRY-RUN] (API reply) → ${to} | ${subject} | thread: ${thread.getId()}`);
+        log(`[DRY-RUN] Body:\n${body}`);
+        return;
+      }
+
+      // Haal het RFC 2822 Message‑ID op via de Gmail API voor correcte threading
+      try {
+        const rfcMsgId = getRfcMessageId(replyToMsg.getId());
+        createReplyDraft(to, subject, body, rfcMsgId, thread.getId());
+        log(`${CONFIG.CREATE_DRAFTS ? '[DRAFT]' : '[SENT]'} (API reply) → ${to} | ${subject}`);
+      } catch (err) {
+        log(`[WARN] Gmail API failed (${err.message}), fallback to createDraft`);
+        GmailApp.createDraft(to, subject, body, { threadId: thread.getId() });
+        log(`[DRAFT] (fallback) → ${to} | ${subject}`);
+      }
+      return;
+    }
+
+    // Normale reply (niet genegeerd)
     if (CONFIG.DRY_RUN) {
       log(`[DRY-RUN] (reply) → ${replyToMsg.getFrom()} | Re: ${originalSubject}`);
       log(`[DRY-RUN] Body:\n${body}`);
@@ -361,17 +441,16 @@ function sendReminder({ to, originalSubject, body, thread }) {
     return;
   }
 
-  // Fallback: geen bericht van ontvanger → verzenden als nieuwe mail (oude gedrag)
+  // Helemaal geen reply‑bericht → nieuwe mail
   const subject = `Re: ${cleanSubject(originalSubject)}`;
+  const options = {};
+  if (thread) options.threadId = thread.getId();
 
   if (CONFIG.DRY_RUN) {
     log(`[DRY-RUN] → ${to} | ${subject}`);
     log(`[DRY-RUN] Body:\n${body}`);
     return;
   }
-
-  const options = {};
-  if (thread) options.threadId = thread.getId();
 
   if (CONFIG.CREATE_DRAFTS) {
     GmailApp.createDraft(to, subject, body, options);
@@ -380,6 +459,31 @@ function sendReminder({ to, originalSubject, body, thread }) {
     GmailApp.sendEmail(to, subject, body, options);
     log(`[SENT] → ${to} | ${subject}`);
   }
+}
+
+/**
+ * Haalt het RFC 2822 Message‑ID van een bericht op via de Gmail API.
+ */
+function getRfcMessageId(gmailMessageId) {
+  const token = ScriptApp.getOAuthToken();
+  const response = UrlFetchApp.fetch(
+    `https://gmail.googleapis.com/gmail/v1/users/me/messages/${gmailMessageId}?format=metadata&metadataHeaders=Message-ID`,
+    {
+      headers: { Authorization: 'Bearer ' + token },
+      muteHttpExceptions: true,
+    }
+  );
+  if (response.getResponseCode() !== 200) {
+    throw new Error('Gmail API getMessage error: ' + response.getContentText());
+  }
+  const data = JSON.parse(response.getContentText());
+  // Zoek de Message-ID header
+  const headers = data.payload?.headers || [];
+  const msgIdHeader = headers.find(h => h.name === 'Message-ID');
+  return {
+    gmailId: data.id,
+    rfcId: msgIdHeader ? msgIdHeader.value : `<${data.id}@gmail.com>`,
+  };
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -440,7 +544,7 @@ function checkReminders() {
       const lang = detectLanguage(sourceMsg.getPlainBody());
       const body = generateReminderText(originalSubject, snippet, recipient.name, lang);
 
-      // Versturen
+      // Versturen (met bronbericht voor forward-context)
       sendReminder({ to: recipient.email, originalSubject, body, thread });
       labelSent++;
     });

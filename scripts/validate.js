@@ -21,7 +21,7 @@ const REQUIRED_FUNCTIONS = {
   ],
   FollowUpReminder: [
     'checkDigests', 'checkEscalations', 'processFollowUps', 'collectPending',
-    'sendDigest', 'sendEscalation', 'rewriteWithLlm', 'setup', 'syncLabels'
+    'sendDigest', 'sendEscalation', 'rewriteProse', 'composeBody', 'setup', 'syncLabels'
   ],
 };
 

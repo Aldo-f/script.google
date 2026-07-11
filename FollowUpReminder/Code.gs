@@ -346,7 +346,12 @@ function deliverEmail({ to, subject, body, cc, attachments }, onSent) {
 
 function sendDigest(toAddress, pending) {
   perfLog(`sendDigest.${toAddress}.start — ${pending.length} items`);
-  const body = rewriteWithLlm(buildFallbackDigest(pending));
+  const overview = buildGroupedOverview(pending);
+  const body = composeBody(
+    'Geachte,\n\nHierbij een overzicht van de meldingen die ik via AWV aan uw dienst doorzond en waarop ik tot op heden nog geen reactie of statusupdate ontving:',
+    overview,
+    'Mag ik u vriendelijk verzoeken de openstaande dossiers op te volgen en mij per dossier op de hoogte te stellen van de huidige status?\n\nMet vriendelijke groeten,\nAldo Fieuw'
+  );
   const pdf  = buildCombinedPdf(pending);
   deliverEmail({
     to:          toAddress,
@@ -360,7 +365,17 @@ function sendDigest(toAddress, pending) {
 
 function sendEscalation(entry, pending, escalatedLabel) {
   perfLog(`sendEscalation.${entry.address}.start — ${pending.length} items`);
-  const body = rewriteWithLlm(buildEscalationBody(entry, pending));
+  const items = pending.map(({ ticketCode, sentDate, context, reminderCount }, i) => {
+    const ref      = ticketCode || '—';
+    const date     = sentDate.toLocaleDateString('nl-BE');
+    const location = context.location || '(locatie onbekend)';
+    return `  ${i + 1}. Ref. ${ref} — ${date} — ${location} (${reminderCount}x herinnerd)`;
+  }).join('\n');
+  const body = composeBody(
+    `Geachte mevrouw Gevers,\n\nVia AWV werden de volgende meldingen doorgestuurd naar ${entry.address}.\nNa ${CONFIG.ESCALATE_AFTER} herhaalde verzoeken om opvolging bleef een reactie uit.\n\nIk escaleer deze dossiers naar u als diensthoofd en stel AWV in kennis zodat zij op de hoogte zijn van het gebrek aan opvolging.\n\nOpenstaande dossiers (bijgevoegde PDF):`,
+    items,
+    `Mag ik u vriendelijk verzoeken deze dossiers dringend op te nemen en mij te informeren over de verdere aanpak?\n\nMet vriendelijke groeten,\nAldo Fieuw`
+  );
   const pdf  = buildCombinedPdf(pending);
   deliverEmail({
     to:          entry.escalateTo,
@@ -374,32 +389,56 @@ function sendEscalation(entry, pending, escalatedLabel) {
   perfLog(`sendEscalation.${entry.address}.end`);
 }
 
-// ─── LLM REWRITE — WATERFALL (Gemini → FreeLLMAPI) ─────────────────────────────
+// ─── AI PROSE REWRITE — WATERFALL (Gemini → FreeLLMAPI) ──────────────────────────
 // Uses callAI() from shared/AIProviders.gs
 
 /**
- * Rewrites a fallback-generated email body using AI (waterfall) to make it
- * sound more natural, while preserving all factual content.
- * Falls back to the original body if all AI providers fail.
+ * Rewrites a single prose paragraph using a strict prompt (Dutch).
+ * Rules: no chain-of-thought, no hallucinated org names (always "AWV"),
+ * strip markdown code fences from output, fallback to original if AI
+ * output is suspiciously long (>3x input length).
  */
-function rewriteWithLlm(body) {
+function rewriteProse(prose) {
   const prompt = [
-    'Herschrijf de onderstaande e-mail in een meer persoonlijke, menselijke schrijfstijl.',
-    'Behoud alle feitelijke informatie exact (referentienummers, datums, locaties, aantallen).',
-    'Maak de toon vriendelijk maar professioneel.',
-    'Geen onderwerpregel, enkel de bodytekst.',
-    'Sluit af op dezelfde manier als het origineel (Met vriendelijke groeten, Aldo Fieuw).',
+    'Je bent Aldo, een gemeenteambtenaar die een beleefde herinnering stuurt.',
+    'Verzin GEEN organisatienamen — gebruik altijd "AWV" (Agentschap Wegen en Verkeer).',
+    'Herschrijf de onderstaande tekst in een vriendelijke, professionele toon.',
+    'Behoud alle feitelijke informatie exact.',
+    'Geef ALLEEN de herschreven tekst terug. Geen inleiding, geen uitleg, geen gedachtegang.',
     '',
-    'Originele e-mail:',
-    body,
+    'Tekst om te herschrijven:',
+    prose,
   ].join('\n');
 
   try {
-    return callAI(prompt);
+    const raw = callAI(prompt).trim();
+    // Strip markdown code fences if present
+    const cleaned = raw.replace(/^```[\s\S]*?\n/, '').replace(/\n```$/, '').trim();
+    // Fallback if output is suspiciously long (>3x input)
+    if (cleaned.length > prose.length * 3) {
+      log(`[WARN] rewriteProse: output too long (${cleaned.length} vs ${prose.length}), using original`);
+      return prose;
+    }
+    return cleaned;
   } catch (err) {
-    log(`[WARN] All AI providers failed (${err.message}), using fallback body`);
-    return body;
+    log(`[WARN] rewriteProse failed (${err.message}), using original prose`);
+    return prose;
   }
+}
+
+/**
+ * Composes an email body by rewriting only the prose parts via AI
+ * and inserting the list block verbatim.
+ *
+ * @param {string} introProse  - Introductory paragraph(s) to rewrite
+ * @param {string} listBlock   - Markdown-style list (inserted verbatim)
+ * @param {string} outroProse  - Closing paragraph(s) to rewrite
+ * @returns {string} Full email body
+ */
+function composeBody(introProse, listBlock, outroProse) {
+  const rewrittenIntro = rewriteProse(introProse);
+  const rewrittenOutro = rewriteProse(outroProse);
+  return [rewrittenIntro, '', listBlock, '', rewrittenOutro].join('\n');
 }
 
 // ─── PDF GENERATION ──────────────────────────────────────────────────────────
@@ -762,8 +801,18 @@ function testEscalationDraft() {
 
   log(`[TEST] Building escalation draft with ${pending.length} dossier(s)...`);
 
+  const items = pending.map(({ ticketCode, sentDate, context, reminderCount }, i) => {
+    const ref      = ticketCode || '—';
+    const date     = sentDate.toLocaleDateString('nl-BE');
+    const location = context.location || '(locatie onbekend)';
+    return `  ${i + 1}. Ref. ${ref} — ${date} — ${location} (${reminderCount}x herinnerd)`;
+  }).join('\n');
   const pdf    = buildCombinedPdf(pending);
-  const body   = rewriteWithLlm(buildEscalationBody(entry, pending));
+  const body   = composeBody(
+    `Geachte mevrouw Gevers,\n\nVia AWV werden de volgende meldingen doorgestuurd naar ${entry.address}.\nNa ${CONFIG.ESCALATE_AFTER} herhaalde verzoeken om opvolging bleef een reactie uit.\n\nIk escaleer deze dossiers naar u als diensthoofd en stel AWV in kennis zodat zij op de hoogte zijn van het gebrek aan opvolging.\n\nOpenstaande dossiers (bijgevoegde PDF):`,
+    items,
+    `Mag ik u vriendelijk verzoeken deze dossiers dringend op te nemen en mij te informeren over de verdere aanpak?\n\nMet vriendelijke groeten,\nAldo Fieuw`
+  );
   const ccList = [CONFIG.MY_EMAIL, ...(entry.escalateCc || [])].join(',');
 
   GmailApp.createDraft(entry.escalateTo, `[TEST] ${entry.escalateSubject}`, body, {
