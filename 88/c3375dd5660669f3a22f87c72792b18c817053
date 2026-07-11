@@ -1,0 +1,36 @@
+LabelReminder/appsscript.json
+  s_ea82058a12db06::t_5f2fc0998ba905 12-15
+FollowUpReminder/appsscript.json
+  s_ea82058a12db06::t_a6c105067fa396 9-19
+  s_ea82058a12db06::t_202474da8d54b8 20
+FollowUpReminder/.clasp.json
+  s_ea82058a12db06::t_44537ced2af2ee 3
+LabelReminder/Code.gs
+  s_e5dfb2d80099bf::t_e672119dfb80d4 115-116,124-126
+LabelReminder/.clasp.json
+  s_ea82058a12db06::t_f73dec080dc1b5 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "88c3375dd5660669f3a22f87c72792b18c817053",
+  "prompts": {},
+  "sessions": {
+    "s_e5dfb2d80099bf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_0b3e4ffd9ffeZDEnjbBAtFBTPd",
+        "model": "unknown"
+      },
+      "human_author": "Aldo <aldo.fieuw@gmail.com>"
+    },
+    "s_ea82058a12db06": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_0c1e5ff88ffeMQTwrmT2Aqfn51",
+        "model": "unknown"
+      },
+      "human_author": "Aldo <aldo.fieuw@gmail.com>"
+    }
+  }
+}
