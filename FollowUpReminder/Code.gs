@@ -371,11 +371,7 @@ function sendEscalation(entry, pending, escalatedLabel) {
     const location = context.location || '(locatie onbekend)';
     return `  ${i + 1}. Ref. ${ref} — ${date} — ${location} (${reminderCount}x herinnerd)`;
   }).join('\n');
-  const body = composeBody(
-    `Geachte mevrouw Gevers,\n\nVia AWV werden de volgende meldingen doorgestuurd naar ${entry.address}.\nNa ${CONFIG.ESCALATE_AFTER} herhaalde verzoeken om opvolging bleef een reactie uit.\n\nIk escaleer deze dossiers naar u als diensthoofd en stel AWV in kennis zodat zij op de hoogte zijn van het gebrek aan opvolging.\n\nOpenstaande dossiers (bijgevoegde PDF):`,
-    items,
-    `Mag ik u vriendelijk verzoeken deze dossiers dringend op te nemen en mij te informeren over de verdere aanpak?\n\nMet vriendelijke groeten,\nAldo Fieuw`
-  );
+  const body = `Geachte mevrouw Gevers,\n\nVia AWV werden de volgende meldingen doorgestuurd naar ${entry.address}.\nNa ${CONFIG.ESCALATE_AFTER} herhaalde verzoeken om opvolging bleef een reactie uit.\n\nIk escaleer deze dossiers naar u als diensthoofd en stel AWV in kennis zodat zij op de hoogte zijn van het gebrek aan opvolging.\n\nOpenstaande dossiers (bijgevoegde PDF):\n${items}\n\nMag ik u vriendelijk verzoeken deze dossiers dringend op te nemen en mij te informeren over de verdere aanpak?\n\nMet vriendelijke groeten,\nAldo Fieuw`;
   const pdf  = buildCombinedPdf(pending);
   deliverEmail({
     to:          entry.escalateTo,
