@@ -1,0 +1,62 @@
+AGENTS.md
+  s_fc457f2766d6bc::t_da35e6cdcf6e73 3-6,15-37,56,70,77,99-102
+  s_10d3348c10028c::t_6f21143345761f 38
+LabelReminder/AGENTS.md
+  s_72f0f2b0628e2c::t_9a754b79254a62 1-45
+FollowUpReminder/Code.gs
+  s_ffa49a39b7adf3::t_d1ed0e3ca7ca9d 404
+  s_ffa49a39b7adf3::t_62a4e572db23a2 802,805
+  s_ffa49a39b7adf3::t_4c4ac3f8ac8f05 358
+  s_ffa49a39b7adf3::t_81f554eaf03b32 369,372
+  s_ffa49a39b7adf3::t_bbac75f24453bb 558,561
+FollowUpReminder/AGENTS.md
+  s_009ea9596b948f::t_b3ca5048027729 1-54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.12",
+  "base_commit_sha": "1a4f4d209805c5bff37d704f3ed1f65c1e484f41",
+  "prompts": {},
+  "sessions": {
+    "s_009ea9596b948f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_0af7f8a51ffefvIPjg5Cnnl9hr",
+        "model": "unknown"
+      },
+      "human_author": "Aldo <aldo.fieuw@gmail.com>"
+    },
+    "s_10d3348c10028c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_0af850c94ffe1fHibcI0lAY2qF",
+        "model": "unknown"
+      },
+      "human_author": "Aldo <aldo.fieuw@gmail.com>"
+    },
+    "s_72f0f2b0628e2c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_0af7f8922ffenFCS0Xauyz79iC",
+        "model": "unknown"
+      },
+      "human_author": "Aldo <aldo.fieuw@gmail.com>"
+    },
+    "s_fc457f2766d6bc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_0af7f8a62ffehhaOwPk29lJPd7",
+        "model": "unknown"
+      },
+      "human_author": "Aldo <aldo.fieuw@gmail.com>"
+    },
+    "s_ffa49a39b7adf3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_0af819a88ffeWYxoKhZQbMc8R3",
+        "model": "unknown"
+      },
+      "human_author": "Aldo <aldo.fieuw@gmail.com>"
+    }
+  }
+}
