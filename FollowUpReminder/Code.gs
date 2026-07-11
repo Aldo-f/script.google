@@ -355,7 +355,7 @@ function sendDigest(toAddress, pending) {
   const pdf  = buildCombinedPdf(pending);
   deliverEmail({
     to:          toAddress,
-    subject:     `${CONFIG.DIGEST_SUBJECT_PREFIX} — ${formatDateDisplay(new Date())}`,
+    subject:     `${CONFIG.DIGEST_SUBJECT_PREFIX} - ${formatDateDisplay(new Date())}`,
     body,
     cc:          CONFIG.MY_EMAIL,
     attachments: [pdf],
@@ -366,10 +366,10 @@ function sendDigest(toAddress, pending) {
 function sendEscalation(entry, pending, escalatedLabel) {
   perfLog(`sendEscalation.${entry.address}.start — ${pending.length} items`);
   const items = pending.map(({ ticketCode, sentDate, context, reminderCount }, i) => {
-    const ref      = ticketCode || '—';
+    const ref      = ticketCode || '-';
     const date     = sentDate.toLocaleDateString('nl-BE');
     const location = context.location || '(locatie onbekend)';
-    return `  ${i + 1}. Ref. ${ref} — ${date} — ${location} (${reminderCount}x herinnerd)`;
+    return `  ${i + 1}. Ref. ${ref} - ${date} - ${location} (${reminderCount}x herinnerd)`;
   }).join('\n');
   const body = `Geachte mevrouw Gevers,\n\nVia AWV werden de volgende meldingen doorgestuurd naar ${entry.address}.\nNa ${CONFIG.ESCALATE_AFTER} herhaalde verzoeken om opvolging bleef een reactie uit.\n\nIk escaleer deze dossiers naar u als diensthoofd en stel AWV in kennis zodat zij op de hoogte zijn van het gebrek aan opvolging.\n\nOpenstaande dossiers (bijgevoegde PDF):\n${items}\n\nMag ik u vriendelijk verzoeken deze dossiers dringend op te nemen en mij te informeren over de verdere aanpak?\n\nMet vriendelijke groeten,\nAldo Fieuw`;
   const pdf  = buildCombinedPdf(pending);
@@ -401,6 +401,7 @@ function rewriteProse(prose) {
     'Herschrijf de onderstaande tekst in een vriendelijke, professionele toon.',
     'Behoud alle feitelijke informatie exact.',
     'Geef ALLEEN de herschreven tekst terug. Geen inleiding, geen uitleg, geen gedachtegang.',
+    '- Gebruik GEEN em dashes (—) — gebruik altijd een gewoon minteken (-).',
     '',
     'Tekst om te herschrijven:',
     prose,
@@ -554,10 +555,10 @@ function buildFallbackDigest(pending) {
 
 function buildEscalationBody(entry, pending) {
   const items = pending.map(({ ticketCode, sentDate, context, reminderCount }, i) => {
-    const ref      = ticketCode || '—';
+    const ref      = ticketCode || '-';
     const date     = sentDate.toLocaleDateString('nl-BE');
     const location = context.location || '(locatie onbekend)';
-    return `  ${i + 1}. Ref. ${ref} — ${date} — ${location} (${reminderCount}x herinnerd)`;
+    return `  ${i + 1}. Ref. ${ref} - ${date} - ${location} (${reminderCount}x herinnerd)`;
   }).join('\n');
 
   return [
@@ -798,10 +799,10 @@ function testEscalationDraft() {
   log(`[TEST] Building escalation draft with ${pending.length} dossier(s)...`);
 
   const items = pending.map(({ ticketCode, sentDate, context, reminderCount }, i) => {
-    const ref      = ticketCode || '—';
+    const ref      = ticketCode || '-';
     const date     = sentDate.toLocaleDateString('nl-BE');
     const location = context.location || '(locatie onbekend)';
-    return `  ${i + 1}. Ref. ${ref} — ${date} — ${location} (${reminderCount}x herinnerd)`;
+    return `  ${i + 1}. Ref. ${ref} - ${date} - ${location} (${reminderCount}x herinnerd)`;
   }).join('\n');
   const pdf    = buildCombinedPdf(pending);
   const body   = composeBody(
