@@ -174,3 +174,54 @@ gmail-reminder-scripts/
 ├── FLOW.md                # Detailed flow diagrams
 └── SPEC.md                # Architecture specs
 ```
+
+### 🔌 Run Functions from the CLI (`clasp run`)
+
+> **Prerequisites**: a GCP project with the Apps Script API enabled and a Desktop OAuth client.
+
+1. **Create an OAuth client** in the [Google Cloud Console](https://console.cloud.google.com/apis/credentials):
+   - Click **+ Create Credentials → OAuth client ID**.
+   - Application type: **Desktop app**.
+   - Add `http://localhost` to **Authorized redirect URIs**.
+   - Copy the Client ID + Client Secret.
+
+2. **Save them locally** (never commit this file):
+   ```bash
+   nano credentials.json
+   ```
+   ```json
+   {
+     "installed": {
+       "client_id": "YOUR_CLIENT_ID",
+       "client_secret": "YOUR_CLIENT_SECRET",
+       "redirect_uris": ["http://localhost"]
+     }
+   }
+   ```
+
+3. **Login with the custom credentials** from inside a project folder:
+   ```bash
+   cd LabelReminder
+   rm -f .clasprc.json
+   npx @google/clasp login --creds ../credentials.json
+   ```
+   Open the printed URL, authorize, and the token will be saved to `.clasprc.json`.
+
+4. **Run any function**:
+   ```bash
+   npx @google/clasp run dryRun
+   # or
+   npx @google/clasp run previewPending
+   ```
+
+5. **Repeat for the other project**:
+   ```bash
+   cd ../FollowUpReminder
+   npx @google/clasp login --creds ../credentials.json
+   npx @google/clasp run dryRun
+   ```
+
+> ⚠️ `.clasprc.json` and `credentials.json` are listed in `.gitignore` — keep them that way!  
+> The first time you use `clasp run` on a new project, you may need to open it in the browser and run a function once to accept the OAuth permissions.
+
+---
