@@ -277,18 +277,25 @@ function generateReminderText(originalSubject, originalSnippet, senderName, lang
       ? 'Schrijf de e-mail in het Nederlands.'
       : 'Write the email in English.';
 
+  // Adjust tone instructions based on reminder count
+  let toneInstruction = '';
+  if (reminderCount >= 3) {
+    toneInstruction = 'Wees zeer dringend, vastberaden en uitdrukkelijk bezorgd over de veiligheid. De situatie is al lang onopgelost en vormt een ernstig risico.';
+  } else if (reminderCount >= 1) {
+    toneInstruction = 'Wees zakelijk, vastberaden en wijzend op het veiligheidsrisico. Dit is geen eerste herinnering meer.';
+  } else {
+    toneInstruction = 'Schrijf een korte, vriendelijke herinneringsmail. Vraag beleefd of ze al de tijd hebben gehad om te antwoorden. Toon begrip, geen urgentie. Houd het kort en professioneel.';
+  }
+
   const prompt = [
     langInstruction,
     '',
-    `Gebruik de volgende toon: ${tone}.`,
-    'Schrijf een herinneringsmail over de eerder gemelde gevaarlijke situatie.',
-    'De ontvanger heeft nog niet gereageerd op eerdere herinneringen.',
-    'Vraag beleefd maar vastberaden om een statusupdate.',
+    toneInstruction,
     '',
     'BELANGRIJK: Geef ENKEL de e-mail body. Geen toelichting, geen uitleg,',
     'geen redenering, geen kopjes, geen markeringen, geen scheidingslijnen.',
     'Niet vertellen wat je gedaan hebt of waarom. Alleen de e-mail tekst zelf.',
-    'Geen vetgedrukte tekst of opsommingen met nummers.',
+    'Geen vetgedrukte tekst, geen opsommingen met nummers, geen markdown.',
     '',
     'Context:',
     `- Origineel onderwerp: "${originalSubject}"`,
@@ -474,10 +481,12 @@ function sendReminder({ to, originalSubject, body, thread }) {
         const rfcMsgId = getRfcMessageId(replyToMsg.getId());
         createReplyDraft(to, subject, body, rfcMsgId, thread.getId());
         log(`${CONFIG.CREATE_DRAFTS ? '[DRAFT]' : '[SENT]'} (API reply) → ${to} | ${subject}`);
+        log(`Body:\n${body}`);  // Log email body for review
       } catch (err) {
         log(`[WARN] Gmail API failed (${err.message}), fallback to createDraft`);
         GmailApp.createDraft(to, subject, body, { threadId: thread.getId() });
         log(`[DRAFT] (fallback) → ${to} | ${subject}`);
+        log(`Body:\n${body}`);  // Log email body for review
       }
       return;
     }
@@ -491,9 +500,11 @@ function sendReminder({ to, originalSubject, body, thread }) {
     if (CONFIG.CREATE_DRAFTS) {
       replyToMsg.createDraftReply(body);
       log(`[DRAFT] (reply) → ${replyToMsg.getFrom()} | Re: ${originalSubject}`);
+      log(`Body:\n${body}`);  // Log email body for review
     } else {
       replyToMsg.reply(body);
       log(`[SENT] (reply) → ${replyToMsg.getFrom()} | Re: ${originalSubject}`);
+      log(`Body:\n${body}`);  // Log email body for review
     }
     return;
   }
@@ -512,9 +523,11 @@ function sendReminder({ to, originalSubject, body, thread }) {
   if (CONFIG.CREATE_DRAFTS) {
     GmailApp.createDraft(to, subject, body, options);
     log(`[DRAFT] → ${to} | ${subject}`);
+    log(`Body:\n${body}`);  // Log email body for review
   } else {
     GmailApp.sendEmail(to, subject, body, options);
     log(`[SENT] → ${to} | ${subject}`);
+    log(`Body:\n${body}`);  // Log email body for review
   }
 }
 
