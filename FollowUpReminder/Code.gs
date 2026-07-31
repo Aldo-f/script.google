@@ -38,13 +38,13 @@ const CONFIG = {
   // AI Providers — waterfall: FreeLLMAPI first, then Gemini
   FREE_LLM_API_URL: 'https://freellm.aldof.duckdns.org/v1/chat/completions',
   FREE_LLM_MODEL:   'auto',
-  GEMINI_MODEL:     'gemini-2.0-flash',
+  GEMINI_MODEL:     'gemini-3.5-flash',
 
   WATCHLIST: [
     {
       address:         'mobiliteit@merelbeke-melle.be',
       escalateTo:      'hannah.gevers@merelbeke-melle.be',
-      escalateCc:      ['klantendienst-awv@wegenenverkeer.be'],
+      escalateCc:      ['klantendienst-awv@wegenenverkeer.be;Lena.De.Smaele@merelbeke-melle.be;Sandra.Arco@merelbeke-melle.be'],
       escalateSubject: 'Escalatie: herhaaldelijk onbeantwoorde AWV-meldingen',
     },
     // {
