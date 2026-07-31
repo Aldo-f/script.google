@@ -127,8 +127,8 @@ function syncLabels() {
   CONFIG.WATCHLIST.forEach(entry => {
     perfLog(`syncLabels.entry.${entry.address}.start`);
     const countMap = buildReminderCountMap(entry.address);
-    // Limit search to last 90 days to avoid scanning years of closed threads
-    const lookback  = formatDate(daysAgo(90));
+    // Limit search to last 180 days to avoid scanning years of closed threads
+    const lookback  = formatDate(daysAgo(180));
     const threads   = GmailApp.search(awvDossierQuery(entry.address, `after:${lookback}`));
 
     threads.forEach(thread => {
@@ -191,8 +191,8 @@ function buildReminderCountMap(address) {
   }
   perfLog(`buildReminderCountMap.${address}.start`);
 
-  // Limit to last 90 days to avoid scanning years of stale digest emails
-  const after   = formatDate(daysAgo(90));
+  // Limit to last 180 days to avoid scanning years of stale digest emails
+  const after   = formatDate(daysAgo(180));
   const query   = `from:${CONFIG.MY_EMAIL} to:${address} subject:"${CONFIG.DIGEST_SUBJECT_PREFIX}" after:${after}`;
   const threads = GmailApp.search(query);
   const map     = new Map();
@@ -350,7 +350,7 @@ function sendDigest(toAddress, pending) {
   const body = composeBody(
     'Geachte,\n\nHierbij een overzicht van de meldingen die ik via AWV aan uw dienst doorzond en waarop ik tot op heden nog geen reactie of statusupdate ontving:',
     overview,
-    'Mag ik u vriendelijk verzoeken de openstaande dossiers op te volgen en mij per dossier op de hoogte te stellen van de huidige status?\n\nMet vriendelijke groeten,\nAldo Fieuw'
+    'Mag ik u verzoeken de openstaande dossiers op te volgen en mij per dossier op de hoogte te stellen van de huidige status?\n\nMet vriendelijke groeten,\nAldo Fieuw'
   );
   const pdf  = buildCombinedPdf(pending);
   deliverEmail({
@@ -371,7 +371,7 @@ function sendEscalation(entry, pending, escalatedLabel) {
     const location = context.location || '(locatie onbekend)';
     return `  ${i + 1}. Ref. ${ref} - ${date} - ${location} (${reminderCount}x herinnerd)`;
   }).join('\n');
-  const body = `Geachte mevrouw Gevers,\n\nVia AWV werden de volgende meldingen doorgestuurd naar ${entry.address}.\nNa ${CONFIG.ESCALATE_AFTER} herhaalde verzoeken om opvolging bleef een reactie uit.\n\nIk escaleer deze dossiers naar u als diensthoofd en stel AWV in kennis zodat zij op de hoogte zijn van het gebrek aan opvolging.\n\nOpenstaande dossiers (bijgevoegde PDF):\n${items}\n\nMag ik u vriendelijk verzoeken deze dossiers dringend op te nemen en mij te informeren over de verdere aanpak?\n\nMet vriendelijke groeten,\nAldo Fieuw`;
+  const body = `Geachte mevrouw Gevers,\n\nVia AWV werden de volgende meldingen doorgestuurd naar ${entry.address}.\nNa ${CONFIG.ESCALATE_AFTER} herhaalde verzoeken om opvolging bleef een reactie uit.\n\nIk escaleer deze dossiers naar u als diensthoofd en stel AWV in kennis zodat zij op de hoogte zijn van het gebrek aan opvolging.\n\nOpenstaande dossiers (bijgevoegde PDF):\n${items}\n\nMag ik u verzoeken deze dossiers dringend op te nemen en mij te informeren over de verdere aanpak?\n\nMet vriendelijke groeten,\nAldo Fieuw`;
   const pdf  = buildCombinedPdf(pending);
   deliverEmail({
     to:          entry.escalateTo,
@@ -396,7 +396,7 @@ function sendEscalation(entry, pending, escalatedLabel) {
  */
 function rewriteProse(prose) {
   const prompt = [
-    'Je bent Aldo, een gemeenteambtenaar die een beleefde herinnering stuurt.',
+    'Je bent Aldo, een burger die een beleefde herinnering stuurt.',
     'Verzin GEEN organisatienamen — gebruik altijd "AWV" (Agentschap Wegen en Verkeer).',
     'Herschrijf de onderstaande tekst in een vriendelijke, professionele toon.',
     'Behoud alle feitelijke informatie exact.',
@@ -545,7 +545,7 @@ function buildFallbackDigest(pending) {
     '',
     buildGroupedOverview(pending),
     '',
-    'Mag ik u vriendelijk verzoeken de openstaande dossiers op te volgen',
+    'Mag ik u verzoeken de openstaande dossiers op te volgen',
     'en mij per dossier op de hoogte te stellen van de huidige status?',
     '',
     'Met vriendelijke groeten,',
@@ -573,7 +573,7 @@ function buildEscalationBody(entry, pending) {
     `Openstaande dossiers (bijgevoegde PDF):`,
     items,
     ``,
-    `Mag ik u vriendelijk verzoeken deze dossiers dringend op te nemen`,
+    `Mag ik u verzoeken deze dossiers dringend op te nemen`,
     `en mij te informeren over de verdere aanpak?`,
     ``,
     `Met vriendelijke groeten,`,
@@ -767,7 +767,7 @@ function buildFallbackReminder(context, subject, sentDate) {
     `met als onderwerp "${subject}".${location}`,
     ``,
     `Tot op heden ontving ik nog geen reactie of statusupdate.`,
-    `Mag ik u vriendelijk verzoeken dit dossier op te volgen`,
+    `Mag ik u verzoeken dit dossier op te volgen`,
     `en mij op de hoogte te stellen van het verdere verloop?`,
     ``,
     `Met vriendelijke groeten,`,
@@ -808,7 +808,7 @@ function testEscalationDraft() {
   const body   = composeBody(
     `Geachte mevrouw Gevers,\n\nVia AWV werden de volgende meldingen doorgestuurd naar ${entry.address}.\nNa ${CONFIG.ESCALATE_AFTER} herhaalde verzoeken om opvolging bleef een reactie uit.\n\nIk escaleer deze dossiers naar u als diensthoofd en stel AWV in kennis zodat zij op de hoogte zijn van het gebrek aan opvolging.\n\nOpenstaande dossiers (bijgevoegde PDF):`,
     items,
-    `Mag ik u vriendelijk verzoeken deze dossiers dringend op te nemen en mij te informeren over de verdere aanpak?\n\nMet vriendelijke groeten,\nAldo Fieuw`
+    `Mag ik u verzoeken deze dossiers dringend op te nemen en mij te informeren over de verdere aanpak?\n\nMet vriendelijke groeten,\nAldo Fieuw`
   );
   const ccList = [CONFIG.MY_EMAIL, ...(entry.escalateCc || [])].join(',');
 
