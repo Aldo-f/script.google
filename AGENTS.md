@@ -62,15 +62,17 @@ script.google/
 1. Open the Apps Script project (`script.google.com`).
 2. Go to **Project Settings → Script Properties**.
 3. Add:
-   - `GEMINI_API_KEY` – comma‑separated API keys (primary).
+   - `GEMINI_API_KEY` – comma-separated API keys (primary).
    - `FREE_LLM_API_KEY` – optional fallback key.
+   - `OPENROUTER_API_KEY` – optional fallback key for OpenRouter.
 4. The `setup()` function in each project's `Code.gs` logs missing keys.
 
 ## AI Provider (`shared/AIProviders.gs`)
-- Exposes: `getGeminiApiKeys()`, `getFreeLLMApiKey()`, `callGemini(prompt, opts)`, `callFreeLLM(prompt, opts)`, `callAI(prompt, opts)`.
+- Exposes: `getGeminiApiKeys()`, `getFreeLLMApiKey()`, `getOpenRouterApiKey()`, `callGemini(prompt, opts)`, `callFreeLLM(prompt, opts)`, `callOpenRouter(prompt, opts)`, `callAI(prompt, opts)`.
 - Default `maxTokens` = 800 (override via `{maxTokens}`).
 - Both projects call `callAI()` for reminder text or digest generation.
-- Waterfall: Gemini (multi-key fallback) → FreeLLMAPI → throws (caller catches and uses fallback template).
+- Waterfall: Gemini (multi-key fallback) → FreeLLMAPI → OpenRouter → throws (caller catches and uses fallback template).
+- **Note**: Gemini uses `gemini-2.5-flash` (latest free model) with automatic fallback to other providers when quota is exceeded.
 
 ## Testing Conventions
 - Tests live in `LabelReminder/Test.gs` and `FollowUpReminder/Test.gs` (pure‑function style, inline assertions).

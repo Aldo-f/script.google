@@ -1,15 +1,16 @@
 /**
  * AIProviders.gs — Shared AI provider module
  *
- * Waterfall: Gemini (multi-key) → FreeLLMAPI → throws
+ * Waterfall: Gemini (multi-key) → FreeLLMAPI → OpenRouter → fallback template
  *
  * Deployed to both LabelReminder and FollowUpReminder projects.
- * Relies on each project's CONFIG for {FREE_LLM_API_URL, FREE_LLM_MODEL, GEMINI_MODEL}.
+ * Relies on each project's CONFIG for {FREE_LLM_API_URL, FREE_LLM_MODEL, GEMINI_MODEL, OPENROUTER_API_URL, OPENROUTER_MODEL}.
  * API keys are read from Script Properties (not CONFIG).
  *
  * Required Script Properties:
- *   GEMINI_API_KEY    — comma-separated Gemini API keys (required)
- *   FREE_LLM_API_KEY  — FreeLLMAPI key (optional — only needed if Gemini fails)
+ *   GEMINI_API_KEY    — comma-separated Gemini API keys (primary)
+ *   FREE_LLM_API_KEY  — FreeLLMAPI key (optional — fallback)
+ *   OPENROUTER_API_KEY — OpenRouter API key (optional — fallback)
  */
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -32,6 +33,16 @@ function getGeminiApiKeys() {
  */
 function getFreeLLMApiKey() {
   const raw = PropertiesService.getScriptProperties().getProperty('FREE_LLM_API_KEY');
+  if (!raw) return null;
+  return raw.trim();
+}
+
+/**
+ * Read OPENROUTER_API_KEY from Script Properties.
+ * Returns the key string, or null if not set.
+ */
+function getOpenRouterApiKey() {
+  const raw = PropertiesService.getScriptProperties().getProperty('OPENROUTER_API_KEY');
   if (!raw) return null;
   return raw.trim();
 }
@@ -134,11 +145,62 @@ function callFreeLLM(prompt, opts) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// WATERFALL — Gemini first, then FreeLLMAPI
+// OPENROUTER API (OpenAI-compatible)
 // ════════════════════════════════════════════════════════════════════════════
 
 /**
- * Waterfall: try Gemini first, then FreeLLMAPI.
+ * Call OpenRouter API.
+ * @param {string} prompt
+ * @param {{ maxTokens?: number }} [opts]
+ * @returns {string} Generated text
+ */
+function callOpenRouter(prompt, opts) {
+  opts = opts || {};
+  const apiKey = getOpenRouterApiKey();
+  const model = CONFIG.OPENROUTER_MODEL || 'inclusionai/ling-3.0-flash:free';
+  const maxTokens = opts.maxTokens || 800;
+
+  if (!apiKey) throw new Error('OPENROUTER_API_KEY not configured in Script Properties');
+
+  const response = UrlFetchApp.fetch(
+    'https://openrouter.ai/api/v1/chat/completions',
+    {
+      method: 'post',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + apiKey,
+        'HTTP-Referer': 'https://script.google.com',
+        'X-Title': 'LabelReminder',
+      },
+      payload: JSON.stringify({
+        model: model,
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: maxTokens,
+        temperature: 0.7,
+      }),
+      muteHttpExceptions: true,
+    }
+  );
+
+  const code = response.getResponseCode();
+  const body = response.getContentText();
+
+  if (code !== 200) {
+    throw new Error('OpenRouter HTTP ' + code + ': ' + body);
+  }
+
+  const parsed = JSON.parse(body);
+  const text = parsed.choices?.[0]?.message?.content?.trim();
+  if (!text) throw new Error('OpenRouter: empty response');
+  return text;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// WATERFALL — Gemini → FreeLLMAPI → OpenRouter → fallback template
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Waterfall: try Gemini first, then FreeLLMAPI, then OpenRouter.
  * @param {string} prompt
  * @param {{ maxTokens?: number }} [opts]
  * @returns {string} Generated text
@@ -161,9 +223,18 @@ function callAI(prompt, opts) {
     log('[AI] FreeLLMAPI success');
     return text;
   } catch (err) {
-    log('[WARN] FreeLLMAPI failed: ' + err.message);
+    log('[WARN] FreeLLMAPI failed: ' + err.message + ', falling back to OpenRouter');
   }
 
-  // 3. All failed
+  // 3. Try OpenRouter
+  try {
+    const text = callOpenRouter(prompt, opts);
+    log('[AI] OpenRouter success');
+    return text;
+  } catch (err) {
+    log('[WARN] OpenRouter failed: ' + err.message);
+  }
+
+  // 4. All failed
   throw new Error('All AI providers failed');
 }

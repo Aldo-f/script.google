@@ -34,9 +34,12 @@ const CONFIG = {
   ON_HOLD:       'remind-every/on-hold',
   LOG_FILE:      'LabelReminder.log',  // Log file in ~/dev/06-apps-script-google/logs/
 
-  // AI Providers — waterfall: FreeLLMAPI first, then Gemini
-  FREE_LLM_API_URL: 'https://freellm.aldof.duckdns.org/v1/chat/completions',
-  FREE_LLM_MODEL:   'auto',  // Uses latest available free model
+  // AI Providers — waterfall: Gemini → FreeLLMAPI → OpenRouter → fallback template
+  GEMINI_MODEL:       'gemini-2.5-flash',  // Latest free Gemini model
+  FREE_LLM_API_URL:   'https://freellm.aldof.duckdns.org/v1/chat/completions',
+  FREE_LLM_MODEL:     'auto',  // Uses latest available free model
+  OPENROUTER_API_URL: 'https://openrouter.ai/api/v1/chat/completions',
+  OPENROUTER_MODEL:   'inclusionai/ling-3.0-flash:free',  // Free model on OpenRouter
 
   // Adressen die geen "echte antwoorden" zijn (AWV bevestigingen, etc.)
   IGNORE_SENDERS: [
