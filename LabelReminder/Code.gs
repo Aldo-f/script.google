@@ -481,12 +481,12 @@ function sendReminder({ to, originalSubject, body, thread }) {
         const rfcMsgId = getRfcMessageId(replyToMsg.getId());
         createReplyDraft(to, subject, body, rfcMsgId, thread.getId());
         log(`${CONFIG.CREATE_DRAFTS ? '[DRAFT]' : '[SENT]'} (API reply) → ${to} | ${subject}`);
-        log(`Body:\n${body}`);  // Log email body for review
+        log(`Body (first 200 chars): ${body.substring(0, 200)}...`);  // Log email body preview for review
       } catch (err) {
         log(`[WARN] Gmail API failed (${err.message}), fallback to createDraft`);
         GmailApp.createDraft(to, subject, body, { threadId: thread.getId() });
         log(`[DRAFT] (fallback) → ${to} | ${subject}`);
-        log(`Body:\n${body}`);  // Log email body for review
+        log(`Body (first 200 chars): ${body.substring(0, 200)}...`);  // Log email body preview for review
       }
       return;
     }
@@ -500,11 +500,11 @@ function sendReminder({ to, originalSubject, body, thread }) {
     if (CONFIG.CREATE_DRAFTS) {
       replyToMsg.createDraftReply(body);
       log(`[DRAFT] (reply) → ${replyToMsg.getFrom()} | Re: ${originalSubject}`);
-      log(`Body:\n${body}`);  // Log email body for review
+      log(`Body (first 200 chars): ${body.substring(0, 200)}...`);  // Log email body preview for review
     } else {
       replyToMsg.reply(body);
       log(`[SENT] (reply) → ${replyToMsg.getFrom()} | Re: ${originalSubject}`);
-      log(`Body:\n${body}`);  // Log email body for review
+      log(`Body (first 200 chars): ${body.substring(0, 200)}...`);  // Log email body preview for review
     }
     return;
   }
@@ -523,11 +523,11 @@ function sendReminder({ to, originalSubject, body, thread }) {
   if (CONFIG.CREATE_DRAFTS) {
     GmailApp.createDraft(to, subject, body, options);
     log(`[DRAFT] → ${to} | ${subject}`);
-    log(`Body:\n${body}`);  // Log email body for review
+    log(`Body (first 200 chars): ${body.substring(0, 200)}...`);  // Log email body preview for review
   } else {
     GmailApp.sendEmail(to, subject, body, options);
     log(`[SENT] → ${to} | ${subject}`);
-    log(`Body:\n${body}`);  // Log email body for review
+    log(`Body (first 200 chars): ${body.substring(0, 200)}...`);  // Log email body preview for review
   }
 }
 
