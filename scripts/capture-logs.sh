@@ -11,7 +11,7 @@ echo "Capturing logs to: $OUTPUT_FILE"
 echo "Timestamp: $(date)"
 echo "========================================" >> "$OUTPUT_FILE"
 
-# Capture logs
+# Capture logs (full output, no truncation)
 clasp tail-logs --simplified 2>&1 >> "$OUTPUT_FILE"
 
 echo "" >> "$OUTPUT_FILE"
@@ -19,4 +19,12 @@ echo "========================================" >> "$OUTPUT_FILE"
 echo "Captured at: $(date)" >> "$OUTPUT_FILE"
 
 echo "Logs saved to: $OUTPUT_FILE"
-cat "$OUTPUT_FILE"
+echo ""
+echo "=== SUMMARY ==="
+echo "Total lines: $(wc -l < "$OUTPUT_FILE")"
+echo "DRAFTs: $(grep -c 'DRAFT' "$OUTPUT_FILE")"
+echo "SENTs: $(grep -c 'SENT' "$OUTPUT_FILE")"
+echo "Body previews: $(grep -c 'Body:' "$OUTPUT_FILE")"
+echo ""
+echo "=== LATEST ENTRIES ==="
+tail -30 "$OUTPUT_FILE"
