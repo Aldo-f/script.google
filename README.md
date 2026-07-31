@@ -170,58 +170,50 @@ gmail-reminder-scripts/
 ├── .github/
 │   └── workflows/
 │       └── validate.yml   # CI syntax + function check
-├── README.md              # This file
-├── FLOW.md                # Detailed flow diagrams
-└── SPEC.md                # Architecture specs
-```
+## 🚀 Local Development & CLI
+
+Scripts are exported from Google Apps Script and live in this repo.
+Edit locally, test with clasp, and commit.
 
 ### 🔌 Run Functions from the CLI (`clasp run`)
 
-> **Prerequisites**: a GCP project with the Apps Script API enabled and a Desktop OAuth client.
+**Quick reference:**
+```bash
+# From project root
+cd ~/dev/06-apps-script-google
 
-1. **Create an OAuth client** in the [Google Cloud Console](https://console.cloud.google.com/apis/credentials):
-   - Click **+ Create Credentials → OAuth client ID**.
-   - Application type: **Desktop app**.
-   - Add `http://localhost` to **Authorized redirect URIs**.
-   - Copy the Client ID + Client Secret.
+# Navigate to project
+cd LabelReminder
 
-2. **Save them locally** (never commit this file):
-   ```bash
-   nano credentials.json
-   ```
-   ```json
-   {
-     "installed": {
-       "client_id": "YOUR_CLIENT_ID",
-       "client_secret": "YOUR_CLIENT_SECRET",
-       "redirect_uris": ["http://localhost"]
-     }
-   }
-   ```
+# Run any function
+clasp run dryRun              # Create drafts (test mode)
+clasp run previewReminders    # Show status log
+clasp run testIrritationCombined  # Test irritation ladder
 
-3. **Login with the custom credentials** from inside a project folder:
-   ```bash
-   cd LabelReminder
-   rm -f .clasprc.json
-   npx @google/clasp login --creds ../credentials.json
-   ```
-   Open the printed URL, authorize, and the token will be saved to `.clasprc.json`.
+# View logs
+clasp tail-logs --simplified  # Show recent logs
+clasp tail-logs --watch       # Watch logs in real-time
 
-4. **Run any function**:
-   ```bash
-   npx @google/clasp run dryRun
-   # or
-   npx @google/clasp run previewPending
-   ```
+# Open in browser
+clasp open-script             # Open Apps Script editor
+clasp open-logs               # Open Cloud Logging
+```
 
-5. **Repeat for the other project**:
-   ```bash
-   cd ../FollowUpReminder
-   npx @google/clasp login --creds ../credentials.json
-   npx @google/clasp run dryRun
-   ```
+**Important:** The first time you run `clasp run`, you must authorize in the browser:
+1. Open: `clasp open-script`
+2. Run the function manually (click ▶️ Run)
+3. Accept permissions when prompted
+4. Then `clasp run` will work
 
-> ⚠️ `.clasprc.json` and `credentials.json` are listed in `.gitignore` — keep them that way!  
-> The first time you use `clasp run` on a new project, you may need to open it in the browser and run a function once to accept the OAuth permissions.
+### 📝 Log Files
+
+Logs are automatically saved to `~/dev/06-apps-script-google/logs/` when run from this repository:
+```bash
+# Check recent logs
+cat ~/dev/06-apps-script-google/logs/LabelReminder.log
+
+# Watch logs
+tail -f ~/dev/06-apps-script-google/logs/LabelReminder.log
+```
 
 ---

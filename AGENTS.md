@@ -39,14 +39,17 @@ script.google/
 ## Common Commands
 | Task | Command |
 |------|---------|
-| Validate locally | `npm run validate` (runs `scripts/validate.js`)
-| Push LabelReminder | `npm run push:label`
-| Push FollowUpReminder | `npm run push:followup`
-| Pull LabelReminder | `npm run pull:label`
-| Pull FollowUpReminder | `npm run pull:followup`
-| Login to clasp | `npm run login`
-| Logout from clasp | `npm run logout`
-| List clasp projects | `npm run list`
+| Validate locally | `npm run validate` (runs `scripts/validate.js`) |
+| Push LabelReminder | `npm run push:label` |
+| Push FollowUpReminder | `npm run push:followup` |
+| Pull LabelReminder | `npm run pull:label` |
+| Pull FollowUpReminder | `npm run pull:followup` |
+| Login to clasp | `npm run login` |
+| Logout from clasp | `npm run logout` |
+| List clasp projects | `npm run list` |
+| **Run function (CLI)** | `clasp run functionName` |
+| **Tail logs (CLI)** | `clasp tail-logs --simplified` |
+| **Open script** | `clasp open-script` |
 
 ## CI / Validation
 - **GitHub Action** `.github/workflows/validate.yml` runs on every push/PR to `main`.

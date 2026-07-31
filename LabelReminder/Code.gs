@@ -32,11 +32,11 @@ const CONFIG = {
   SENDER_ALIAS:  'Aldo Fieuw',
   LABEL_PREFIX:  'remind-every',
   ON_HOLD:       'remind-every/on-hold',
+  LOG_FILE:      'LabelReminder.log',  // Log file in ~/dev/06-apps-script-google/logs/
 
   // AI Providers — waterfall: FreeLLMAPI first, then Gemini
   FREE_LLM_API_URL: 'https://freellm.aldof.duckdns.org/v1/chat/completions',
-  FREE_LLM_MODEL:   'auto',  // or specific model name
-  GEMINI_MODEL:     'gemini-2.0-flash',
+  FREE_LLM_MODEL:   'auto',  // Uses latest available free model
 
   // Adressen die geen "echte antwoorden" zijn (AWV bevestigingen, etc.)
   IGNORE_SENDERS: [
@@ -81,9 +81,14 @@ function getOrCreateLabel(name) {
 function getRemindEveryIntervalLabels() {
   const allLabels = GmailApp.getUserLabels();
   return allLabels.filter(label => {
-    const name = label.getName();
-    if (name === CONFIG.ON_HOLD) return false;
-    return name.startsWith(CONFIG.LABEL_PREFIX + '/') && getIntervalFromLabel(name) !== null;
+    try {
+      const name = label.getName();
+      if (name === CONFIG.ON_HOLD) return false;
+      return name.startsWith(CONFIG.LABEL_PREFIX + '/') && getIntervalFromLabel(name) !== null;
+    } catch (e) {
+      log(`[WARN] Label error: ${e.message}`);
+      return false;
+    }
   });
 }
 
@@ -217,7 +222,54 @@ function cleanAIResponse(text) {
   return text;
 }
 
-function generateReminderText(originalSubject, originalSnippet, senderName, lang) {
+// ════════════════════════════════════════════════════════════════════════════
+// REMINDER COUNT TRACKING
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Get the number of reminders already sent for a thread
+ */
+function getReminderCount(threadId) {
+  const props = PropertiesService.getScriptProperties();
+  const key = `reminderCount_${threadId}`;
+  const count = props.getProperty(key);
+  return count ? parseInt(count, 10) : 0;
+}
+
+/**
+ * Increment the reminder count for a thread
+ */
+function incrementReminderCount(threadId) {
+  const props = PropertiesService.getScriptProperties();
+  const key = `reminderCount_${threadId}`;
+  const current = getReminderCount(threadId);
+  props.setProperty(key, (current + 1).toString());
+  return current + 1;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// TONE DETERMINATION BASED ON REMINDER COUNT AND FIRST MESSAGE DATE
+// ════════════════════════════════════════════════════════════════════════════
+
+function getToneFromContext(reminderCount, firstMessageDate) {
+  const now = new Date();
+  const daysSinceFirst = (now - firstMessageDate) / 86400000;
+
+  // Combined logic: tone increases with both reminders sent AND time passed
+  if (reminderCount >= 3 || daysSinceFirst > 60) {
+    return 'zeer dringend, vastberaden en bezorgd over de veiligheid';
+  } else if (reminderCount >= 1 || daysSinceFirst > 30) {
+    return 'zakelijk, vastberaden en wijzend op het veiligheidsrisico';
+  }
+  return 'kort, vriendelijk en professioneel';
+}
+
+function generateReminderText(originalSubject, originalSnippet, senderName, lang, reminderCount, firstMessageDate) {
+  const tone = getToneFromContext(reminderCount, firstMessageDate);
+
+  const dossierMatch = originalSnippet.match(/KM-\d{4}-\d{5}/);
+  const dossierInfo = dossierMatch ? `\n- Dossiernummer: ${dossierMatch[0]}` : '';
+
   const langInstruction = lang === 'nl'
       ? 'Schrijf de e-mail in het Nederlands.'
       : 'Write the email in English.';
@@ -225,18 +277,20 @@ function generateReminderText(originalSubject, originalSnippet, senderName, lang
   const prompt = [
     langInstruction,
     '',
-    'Schrijf een korte, vriendelijke herinneringsmail.',
-    'De ontvanger heeft nog niet gereageerd op een eerder verzonden e-mail.',
-    'Vraag beleefd of ze al de tijd hebben gehad om te antwoorden.',
-    'Toon begrip, geen urgentie. Houd het kort en professioneel.',
+    `Gebruik de volgende toon: ${tone}.`,
+    'Schrijf een herinneringsmail over de eerder gemelde gevaarlijke situatie.',
+    'De ontvanger heeft nog niet gereageerd op eerdere herinneringen.',
+    'Vraag beleefd maar vastberaden om een statusupdate.',
     '',
     'BELANGRIJK: Geef ENKEL de e-mail body. Geen toelichting, geen uitleg,',
     'geen redenering, geen kopjes, geen markeringen, geen scheidingslijnen.',
     'Niet vertellen wat je gedaan hebt of waarom. Alleen de e-mail tekst zelf.',
+    'Geen vetgedrukte tekst of opsommingen met nummers.',
     '',
     'Context:',
     `- Origineel onderwerp: "${originalSubject}"`,
-    `- Korte inhoud: "${originalSnippet}"`,
+    dossierInfo,
+    `- Korte inhoud: "${originalSnippet.substring(0, 500)}"`,
     '',
     `Maximaal 100 woorden. Geen onderwerpregel.`,
     `Sluit af met "Met vriendelijke groeten,\n${CONFIG.SENDER_ALIAS}"`,
@@ -542,10 +596,13 @@ function checkReminders() {
 
       // Taal en body
       const lang = detectLanguage(sourceMsg.getPlainBody());
-      const body = generateReminderText(originalSubject, snippet, recipient.name, lang);
+      const reminderCount = getReminderCount(thread.getId());
+      const firstMessageDate = getLastSentByMeDate(thread);
+      const body = generateReminderText(originalSubject, snippet, recipient.name, lang, reminderCount, firstMessageDate);
 
       // Versturen (met bronbericht voor forward-context)
       sendReminder({ to: recipient.email, originalSubject, body, thread });
+      incrementReminderCount(thread.getId());
       labelSent++;
     });
 
@@ -688,4 +745,7 @@ function formatDateNL(date) {
 
 function log(msg) {
   Logger.log(msg);
+  // Write to local log file when running from repository
+  // Note: Apps Script cannot directly write to local filesystem
+  // Use `clasp tail-logs --simplified > logs/LabelReminder.log` to capture
 }

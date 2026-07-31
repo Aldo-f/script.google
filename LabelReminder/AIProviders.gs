@@ -51,7 +51,7 @@ function callGemini(prompt, opts) {
   const keys = getGeminiApiKeys();
   if (keys.length === 0) throw new Error('No GEMINI_API_KEY configured');
 
-  const model = CONFIG.GEMINI_MODEL;
+  const model = CONFIG.GEMINI_MODEL || 'gemini-2.0-flash';
   const maxTokens = opts.maxTokens || 800;
 
   for (const apiKey of keys) {
