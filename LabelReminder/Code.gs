@@ -278,11 +278,11 @@ function generateReminderText(originalSubject, originalSnippet, senderName, lang
   // Adjust tone instructions based on reminder count
   let toneInstruction = '';
   if (reminderCount >= 3) {
-    toneInstruction = 'Wees zeer dringend, vastberaden en uitdrukkelijk bezorgd over de veiligheid. De situatie is al lang onopgelost en vormt een ernstig risico.';
+    toneInstruction = 'Wees zeer dringend, vastberaden en uitdrukkelijk bezorgd over de veiligheid. De situatie is al lang onopgelost en vormt een ernstig risico. Gebruik "ik" (niet "we") omdat jij als individu schrijft.';
   } else if (reminderCount >= 1) {
-    toneInstruction = 'Wees zakelijk, vastberaden en wijzend op het veiligheidsrisico. Dit is geen eerste herinnering meer.';
+    toneInstruction = 'Wees zakelijk, vastberaden en wijzend op het veiligheidsrisico. Dit is geen eerste herinnering meer. Gebruik "ik" (niet "we") omdat jij als individu schrijft.';
   } else {
-    toneInstruction = 'Schrijf een korte, vriendelijke herinneringsmail. Vraag beleefd of ze al de tijd hebben gehad om te antwoorden. Toon begrip, geen urgentie. Houd het kort en professioneel.';
+    toneInstruction = 'Schrijf een korte, vriendelijke herinneringsmail. Vraag beleefd of ze al de tijd hebben gehad om te antwoorden. Toon begrip, geen urgentie. Houd het kort en professioneel. Gebruik "ik" (niet "we") omdat jij als individu schrijft.';
   }
 
   const prompt = [
