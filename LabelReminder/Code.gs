@@ -40,6 +40,7 @@ const CONFIG = {
   FREE_LLM_MODEL:     'auto',  // Uses latest available free model
   OPENROUTER_API_URL: 'https://openrouter.ai/api/v1/chat/completions',
   OPENROUTER_MODEL:   'openrouter/free',  // Free model on OpenRouter
+  MAX_REMINDERS:      0,  // 0 = unlimited, set to limit number of reminders
 
   // Adressen die geen "echte antwoorden" zijn (AWV bevestigingen, etc.)
   IGNORE_SENDERS: [
@@ -585,6 +586,12 @@ function checkReminders() {
     log(`[CHECK] "${label.getName()}": ${active.length}/${threads.length} actief (${threads.length - active.length} on-hold)`);
 
     active.forEach(thread => {
+      // Check max reminders limit
+      if (CONFIG.MAX_REMINDERS > 0 && labelSent >= CONFIG.MAX_REMINDERS) {
+        log(`[LIMIT] Max reminders (${CONFIG.MAX_REMINDERS}) reached, stopping.`);
+        return;
+      }
+
       const referenceDate = getLastSentByMeDate(thread);
       const now = new Date();
       const elapsedDays = (now - referenceDate) / 86400000;
@@ -744,6 +751,27 @@ function dryRun() {
 
   CONFIG.DRY_RUN = prevDry;
   CONFIG.CREATE_DRAFTS = prevDrafts;
+}
+
+/**
+ * Dry run with optional max limit
+ * @param {number} maxReminders - Maximum number of reminders to process (0 = unlimited)
+ */
+function dryRunWithMax(maxReminders) {
+  const prevDry = CONFIG.DRY_RUN;
+  const prevDrafts = CONFIG.CREATE_DRAFTS;
+
+  CONFIG.DRY_RUN = false;
+  CONFIG.CREATE_DRAFTS = true;
+
+  const prevMax = CONFIG.MAX_REMINDERS;
+  CONFIG.MAX_REMINDERS = maxReminders || 0;
+
+  checkReminders();
+
+  CONFIG.DRY_RUN = prevDry;
+  CONFIG.CREATE_DRAFTS = prevDrafts;
+  CONFIG.MAX_REMINDERS = prevMax;
 }
 
 // ════════════════════════════════════════════════════════════════════════════
