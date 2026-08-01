@@ -39,7 +39,7 @@ const CONFIG = {
   FREE_LLM_API_URL:   'https://freellm.aldof.duckdns.org/v1/chat/completions',
   FREE_LLM_MODEL:     'auto',  // Uses latest available free model
   OPENROUTER_API_URL: 'https://openrouter.ai/api/v1/chat/completions',
-  OPENROUTER_MODEL:   'inclusionai/ling-3.0-flash:free',  // Free model on OpenRouter
+  OPENROUTER_MODEL:   'openrouter/free',  // Free model on OpenRouter
 
   // Adressen die geen "echte antwoorden" zijn (AWV bevestigingen, etc.)
   IGNORE_SENDERS: [
@@ -226,28 +226,26 @@ function cleanAIResponse(text) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// REMINDER COUNT TRACKING
+// REMINDER COUNT - Count existing reminder emails in thread
 // ════════════════════════════════════════════════════════════════════════════
 
 /**
- * Get the number of reminders already sent for a thread
+ * Count how many reminder emails have been sent for this thread
+ * Looks for emails from MY_EMAIL with "Re:" prefix (reminders)
  */
-function getReminderCount(threadId) {
-  const props = PropertiesService.getScriptProperties();
-  const key = `reminderCount_${threadId}`;
-  const count = props.getProperty(key);
-  return count ? parseInt(count, 10) : 0;
-}
-
-/**
- * Increment the reminder count for a thread
- */
-function incrementReminderCount(threadId) {
-  const props = PropertiesService.getScriptProperties();
-  const key = `reminderCount_${threadId}`;
-  const current = getReminderCount(threadId);
-  props.setProperty(key, (current + 1).toString());
-  return current + 1;
+function getReminderCountFromThread(thread) {
+  const messages = thread.getMessages();
+  let count = 0;
+  for (let i = 0; i < messages.length; i++) {
+    const msg = messages[i];
+    const from = msg.getFrom();
+    const subject = msg.getSubject();
+    // Count emails from us that are replies (reminders)
+    if (from === CONFIG.MY_EMAIL && subject.startsWith('Re: ')) {
+      count++;
+    }
+  }
+  return count;
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -612,13 +610,12 @@ function checkReminders() {
 
       // Taal en body
       const lang = detectLanguage(sourceMsg.getPlainBody());
-      const reminderCount = getReminderCount(thread.getId());
+      const reminderCount = getReminderCountFromThread(thread);
       const firstMessageDate = getLastSentByMeDate(thread);
       const body = generateReminderText(originalSubject, snippet, recipient.name, lang, reminderCount, firstMessageDate);
 
       // Versturen (met bronbericht voor forward-context)
       sendReminder({ to: recipient.email, originalSubject, body, thread });
-      incrementReminderCount(thread.getId());
       labelSent++;
     });
 
