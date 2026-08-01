@@ -755,7 +755,7 @@ function dryRun() {
 
 /**
  * Dry run with optional max limit
- * @param {number} maxReminders - Maximum number of reminders to process (0 = unlimited)
+ * @param {number} maxReminders - Maximum number of reminders to process (default: 3)
  */
 function dryRunWithMax(maxReminders) {
   const prevDry = CONFIG.DRY_RUN;
@@ -764,8 +764,9 @@ function dryRunWithMax(maxReminders) {
   CONFIG.DRY_RUN = false;
   CONFIG.CREATE_DRAFTS = true;
 
+  // Default to 3 if no parameter provided
   const prevMax = CONFIG.MAX_REMINDERS;
-  CONFIG.MAX_REMINDERS = maxReminders || 0;
+  CONFIG.MAX_REMINDERS = maxReminders !== undefined ? maxReminders : 3;
 
   checkReminders();
 
