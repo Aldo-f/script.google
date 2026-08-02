@@ -287,23 +287,29 @@ function generateReminderText(originalSubject, originalSnippet, senderName, lang
   }
 
   const prompt = [
-    langInstruction,
-    '',
-    toneInstruction,
-    '',
-    'BELANGRIJK: Geef ENKEL de e-mail body. Geen toelichting, geen uitleg,',
-    'geen redenering, geen kopjes, geen markeringen, geen scheidingslijnen.',
-    'Niet vertellen wat je gedaan hebt of waarom. Alleen de e-mail tekst zelf.',
-    'Geen vetgedrukte tekst, geen opsommingen met nummers, geen markdown.',
-    '',
-    'Context:',
-    `- Origineel onderwerp: "${originalSubject}"`,
-    dossierInfo,
-    `- Korte inhoud: "${originalSnippet.substring(0, 500)}"`,
-    '',
-    `Maximaal 100 woorden. Geen onderwerpregel.`,
-    `Sluit af met "Met vriendelijke groeten,\n${CONFIG.SENDER_ALIAS}"`,
-  ].join('\n');
+      langInstruction,
+      '',
+      toneInstruction,
+      '',
+      'Schrijf een natuurlijke, vriendelijke herinneringsmail over de eerder gemelde gevaarlijke situatie.',
+      'Verwijs duidelijk naar het oorspronkelijke melding en wat er precies werd gemeld (locatie, probleem, verzoek).',
+      'Vraag beleefd om een statusupdate of voortgangsrapportage.',
+      'Houd de toon respectvol en begripvol, druk maar niet te hard aan.',
+      '',
+      'BELANGRIJK: Geef ENKEL de e-mail body. Geen toelichting, geen uitleg,',
+      'geen redenering, geen kopjes, geen markeringen, geen scheidingslijnen.',
+      'Niet vertellen wat je gedaan hebt of waarom. Alleen de e-mail tekst zelf.',
+      'Geen vetgedrukte tekst, geen opsommingen met nummers, geen markdown.',
+      '',
+      'Context:',
+      `- Origineel onderwerp: "${originalSubject}"`,
+      dossierInfo,
+      `- Korte inhoud: "${originalSnippet.substring(0, 500)}"`,
+      '',
+      `Geef in je antwoord duidelijk weer waar de melding over ging (locatie en probleem).`,
+      `Maximaal 120 woorden. Geen onderwerpregel.`,
+      `Sluit af met "Met vriendelijke groeten,\n${CONFIG.SENDER_ALIAS}"`,
+    ].join('\n');
 
   try {
     return cleanAIResponse(callAI(prompt));
@@ -764,9 +770,13 @@ function dryRunWithMax(maxReminders) {
   CONFIG.DRY_RUN = false;
   CONFIG.CREATE_DRAFTS = true;
 
-  // Default to 3 if no parameter provided
+  // Robust default: only a real positive number is a valid limit, otherwise 3.
+  // Guards against undefined / NaN / string / null from clasp run.
+  const limit = (typeof maxReminders === 'number' && Number.isFinite(maxReminders) && maxReminders >= 1)
+    ? maxReminders
+    : 3;
   const prevMax = CONFIG.MAX_REMINDERS;
-  CONFIG.MAX_REMINDERS = maxReminders !== undefined ? maxReminders : 3;
+  CONFIG.MAX_REMINDERS = limit;
 
   checkReminders();
 
