@@ -32,7 +32,11 @@ jobs:
           CLASP_CREDENTIALS: ${{ secrets.CLASP_CREDENTIALS }}
         run: |
           echo "Authenticating clasp with service account..."
-          echo "$CLASP_CREDENTIALS" > ~/.clasprc.json
+          # CLASP_CREDENTIALS must be a GCP service-account key JSON
+          # (client_email + private_key). clasp login --creds turns it
+          # into the OAuth token file clasp needs (~/.clasprc.json).
+          echo "$CLASP_CREDENTIALS" > /tmp/clasp-sa-key.json
+          npx @google/clasp login --creds /tmp/clasp-sa-key.json
           echo "Authentication successful."
 
       - name: Push LabelReminder project
