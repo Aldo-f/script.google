@@ -592,10 +592,10 @@ function checkReminders() {
     log(`[CHECK] "${label.getName()}": ${active.length}/${threads.length} actief (${threads.length - active.length} on-hold)`);
 
     active.forEach(thread => {
-      // Check max reminders limit
-      if (CONFIG.MAX_REMINDERS > 0 && labelSent >= CONFIG.MAX_REMINDERS) {
-        log(`[LIMIT] Max reminders (${CONFIG.MAX_REMINDERS}) reached, stopping.`);
-        return;
+      // Check max reminders limit (global across all labels)
+      if (CONFIG.MAX_REMINDERS > 0 && totalSent >= CONFIG.MAX_REMINDERS) {
+        log(`[LIMIT] Global max reminders (${CONFIG.MAX_REMINDERS}) reached, stopping.`);
+        return; // stops processing this label
       }
 
       const referenceDate = getLastSentByMeDate(thread);
@@ -627,9 +627,10 @@ function checkReminders() {
       const firstMessageDate = getLastSentByMeDate(thread);
       const body = generateReminderText(originalSubject, snippet, recipient.name, lang, reminderCount, firstMessageDate);
 
-      // Versturen (met bronbericht voor forward-context)
+      // Versturen (met bronverband voor forward-context)
       sendReminder({ to: recipient.email, originalSubject, body, thread });
       labelSent++;
+      totalSent++;
     });
 
     log(`[DONE] ${label.getName()}: ${labelSent} herinnering(en)`);
@@ -762,6 +763,7 @@ function dryRun() {
 /**
  * Dry run with optional max limit
  * @param {number} maxReminders - Maximum number of reminders to process (default: 3)
+ *                              Use 0 for unlimited.
  */
 function dryRunWithMax(maxReminders) {
   const prevDry = CONFIG.DRY_RUN;
@@ -770,11 +772,15 @@ function dryRunWithMax(maxReminders) {
   CONFIG.DRY_RUN = false;
   CONFIG.CREATE_DRAFTS = true;
 
-  // Robust default: only a real positive number is a valid limit, otherwise 3.
-  // Guards against undefined / NaN / string / null from clasp run.
-  const limit = (typeof maxReminders === 'number' && Number.isFinite(maxReminders) && maxReminders >= 1)
-    ? maxReminders
-    : 3;
+  // Determine limit: if undefined => default 3; else use the provided number
+  // (including 0 for unlimited). Guard against non-numeric values.
+  let limit;
+  if (maxReminders === undefined) {
+    limit = 3; // default when no argument supplied
+  } else {
+    const num = Number(maxReminders);
+    limit = Number.isFinite(num) ? num : 3; // fallback to default on invalid
+  }
   const prevMax = CONFIG.MAX_REMINDERS;
   CONFIG.MAX_REMINDERS = limit;
 
