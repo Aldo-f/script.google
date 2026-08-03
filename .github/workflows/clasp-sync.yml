@@ -36,7 +36,11 @@ jobs:
           echo "Authentication successful."
 
       - name: Push LabelReminder project
-        run: npx @google/clasp push --force
+        run: |
+          cd LabelReminder
+          npx @google/clasp push --force
 
       - name: Push FollowUpReminder project
-        run: npx @google/clasp push --force
+        run: |
+          cd FollowUpReminder
+          npx @google/clasp push --force
