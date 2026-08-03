@@ -634,7 +634,7 @@ function checkReminders() {
     });
 
     log(`[DONE] ${label.getName()}: ${labelSent} herinnering(en)`);
-    totalSent += labelSent;
+    // totalSent is already incremented inside active.forEach, do not double-add here
   });
 
   log(`[SUMMARY] Totaal: ${totalSent} herinnering(en) verwerkt`);
