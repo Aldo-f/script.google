@@ -26,19 +26,8 @@ jobs:
           echo "Checking JavaScript syntax..."
           for file in $(find . -name "*.gs" -not -path "./.clasp/*" -not -path "./node_modules/*"); do
             echo "  Checking $file"
-            tmpfile=$(mktemp)
-            sed \
-              -e 's/^\(\s*\)\/\/\s*@ts-check.*$//' \
-              -e 's/Logger\.log/console.log/g' \
-              -e 's/PropertiesService/{\n  getScriptProperties: () => ({ getProperty: () => "" })\n}/g' \
-              -e 's/ScriptApp/{\n  getProjectTriggers: () => [],\n  newTrigger: () => ({ timeBased: () => ({ everyHours: () => ({ create: () => {} }) }) })\n}/g' \
-              -e 's/GmailApp/{\n  search: () => [],\n  getUserLabels: () => [],\n  getUserLabelByName: () => null,\n  createLabel: () => ({ addLabel: () => {}, removeLabel: () => {}, getName: "" }),\n  createDraft: () => {},\n  sendEmail: () => {},\n}/g' \
-              -e 's/UrlFetchApp/{\n  fetch: () => ({ getResponseCode: () => 200, getContentText: () => "{}" })\n}/g' \
-              -e 's/DriveApp/{\n  getFileById: () => ({ getAs: () => ({ setName: () => {} }), setTrashed: () => {} })\n}/g' \
-              -e 's/DocumentApp/{\n  create: () => ({ getId: ""; getBody: () => ({ appendParagraph: () => ({ setHeading: () => {} }), appendPageBreak: () => {}, appendHorizontalLine: () => {}, saveAndClose: () => {} }) })\n}/g' \
-              -e 's/HtmlService/{\n  createHtmlOutput: () => ({ getAs: () => ({ setName: () => {} }) })\n}/g' \
-              -e 's/Utilities/{\n  formatDate: () => ""\n}/g' \
-              "$file" > "$tmpfile"
+            tmpfile=$(mktemp --suffix=.js)
+            cp "$file" "$tmpfile"
             if ! node --check "$tmpfile"; then
               rm -f "$tmpfile"
               exit 1
@@ -61,7 +50,7 @@ jobs:
           echo "✅ LabelReminder: all required functions present"
           
           # FollowUpReminder required functions
-          for fn in "checkDigests" "checkEscalations" "processFollowUps" "collectPending" "sendDigest" "sendEscalation" "rewriteWithLlm" "callFreeLLM" "callGemini" "callAI" "getGeminiApiKeys" "setup" "syncLabels"; do
+          for fn in "checkDigests" "checkEscalations" "processFollowUps" "collectPending" "sendDigest" "sendEscalation" "rewriteProse" "callFreeLLM" "callGemini" "callAI" "getGeminiApiKeys" "setup" "syncLabels"; do
             if ! grep -r "function $fn" FollowUpReminder/ --include="*.gs"; then
               echo "❌ Missing function: $fn in FollowUpReminder"
               exit 1
