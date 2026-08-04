@@ -347,12 +347,7 @@ function deliverEmail({ to, subject, body, cc, attachments }, onSent) {
 
 function sendDigest(entry, pending) {
   perfLog(`sendDigest.${entry.address}.start — ${pending.length} items`);
-  const overview = buildGroupedOverview(pending);
-  const body = composeBody(
-    'Geachte,\n\nHierbij een overzicht van de meldingen die ik via AWV aan uw dienst doorzond en waarop ik tot op heden nog geen reactie of statusupdate ontving:',
-    overview,
-    'Mag ik u verzoeken de openstaande dossiers op te volgen en mij per dossier op de hoogte te stellen van de huidige status?\n\nMet vriendelijke groeten,\nAldo Fieuw'
-  );
+  const body = buildFallbackDigest(pending);
   const pdf  = buildCombinedPdf(pending);
   const cc = [CONFIG.MY_EMAIL, ...(entry.digestCc || [])].join(',');
   deliverEmail({
