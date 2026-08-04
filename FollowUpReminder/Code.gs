@@ -45,6 +45,7 @@ const CONFIG = {
       address:         'mobiliteit@merelbeke-melle.be',
       escalateTo:      'hannah.gevers@merelbeke-melle.be',
       escalateCc:      ['klantendienst-awv@wegenenverkeer.be;Lena.De.Smaele@merelbeke-melle.be;Sandra.Arco@merelbeke-melle.be'],
+      digestCc:        ['Lena.De.Smaele@merelbeke-melle.be', 'Sandra.Arco@merelbeke-melle.be'],
       escalateSubject: 'Escalatie: herhaaldelijk onbeantwoorde AWV-meldingen',
     },
     // {
@@ -112,7 +113,7 @@ function processFollowUps({ doDigest, doEscalate }) {
     }
 
     if (doDigest && pending.length > 0) {
-      sendDigest(entry.address, pending);
+      sendDigest(entry, pending);
     }
     perfLog(`processFollowUps.entry.${entry.address}.end`);
   });
@@ -344,8 +345,8 @@ function deliverEmail({ to, subject, body, cc, attachments }, onSent) {
   }
 }
 
-function sendDigest(toAddress, pending) {
-  perfLog(`sendDigest.${toAddress}.start — ${pending.length} items`);
+function sendDigest(entry, pending) {
+  perfLog(`sendDigest.${entry.address}.start — ${pending.length} items`);
   const overview = buildGroupedOverview(pending);
   const body = composeBody(
     'Geachte,\n\nHierbij een overzicht van de meldingen die ik via AWV aan uw dienst doorzond en waarop ik tot op heden nog geen reactie of statusupdate ontving:',
@@ -353,14 +354,15 @@ function sendDigest(toAddress, pending) {
     'Mag ik u verzoeken de openstaande dossiers op te volgen en mij per dossier op de hoogte te stellen van de huidige status?\n\nMet vriendelijke groeten,\nAldo Fieuw'
   );
   const pdf  = buildCombinedPdf(pending);
+  const cc = [CONFIG.MY_EMAIL, ...(entry.digestCc || [])].join(',');
   deliverEmail({
-    to:          toAddress,
+    to:          entry.address,
     subject:     `${CONFIG.DIGEST_SUBJECT_PREFIX} - ${formatDateDisplay(new Date())}`,
     body,
-    cc:          CONFIG.MY_EMAIL,
+    cc:          cc,
     attachments: [pdf],
   });
-  perfLog(`sendDigest.${toAddress}.end`);
+  perfLog(`sendDigest.${entry.address}.end`);
 }
 
 function sendEscalation(entry, pending, escalatedLabel) {
