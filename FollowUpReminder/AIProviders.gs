@@ -8,7 +8,7 @@
  * API keys are read from Script Properties (not CONFIG).
  *
  * Required Script Properties:
- *   GEMINI_API_KEY    — comma-separated Gemini API keys (primary)
+ *   GEMINI_API_KEY    — comma-separated Gemini API keys (optional)
  *   FREE_LLM_API_KEY  — FreeLLMAPI key (optional — fallback)
  *   OPENROUTER_API_KEY — OpenRouter API key (optional — fallback)
  */

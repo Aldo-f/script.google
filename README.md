@@ -118,7 +118,7 @@ flowchart TD
 
 | Property | Required | Description |
 |---|---|---|
-| `GEMINI_API_KEY` | ✅ Yes | Comma-separated Gemini API keys for multi-key fallback |
+| `GEMINI_API_KEY` | ❌ Optional | Comma-separated Gemini API keys for multi-key fallback |
 | `FREE_LLM_API_KEY` | ❌ Optional | Self-hosted FreeLLMAPI key (fallback if Gemini fails) |
 | `OPENROUTER_API_KEY` | ❌ Optional | OpenRouter API key (3rd-tier fallback) |
 
