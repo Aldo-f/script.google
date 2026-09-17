@@ -10,7 +10,7 @@
 - **Key Concepts**:
   - **AI Waterfall** – `Gemini` → `FreeLLMAPI` → fallback template (see `shared/AIProviders.gs`).
   - **DRY** – Shared AI provider moved to `shared/AIProviders.gs`; both projects import it via `clasp` push order.
-  - **Script Properties** – `GEMINI_API_KEY` (required) and `FREE_LLM_API_KEY` (optional) must be set in the Apps Script editor.
+  - **Script Properties** – `GEMINI_API_KEY` (required), `FREE_LLM_API_KEY` (optional), and `OPENROUTER_API_KEY` (optional) must be set in the Apps Script editor.
 
 ## AGENTS.md Hierarchy
 ```

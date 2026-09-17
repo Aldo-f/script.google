@@ -6,3 +6,4 @@ credentials.json
 *.local
 *.log
 .DS_Store
+*.js

@@ -847,6 +847,7 @@ function setup() {
   log('Vergeet niet in Project Settings → Script Properties:');
   log('  - GEMINI_API_KEY   (komma-gescheiden voor meerdere keys)');
   log('  - FREE_LLM_API_KEY (fallback provider)');
+  log('  - OPENROUTER_API_KEY (optionele fallback)');
   log('Setup complete: digest + escalation scheduled separately.');
 }
 

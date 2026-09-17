@@ -42,25 +42,19 @@ Scans Gmail for unanswered cases, sends summary digest emails, and escalates stu
 
 **Flow:**
 
-```
-AWV email arrives
-       │
-       ▼
-FollowUpReminder detects (search query + FollowUp/Active label)
-       │
-       ▼
-Every X days: collectPending()
-  │  ┌── skip closed (FollowUp/Closed)
-  │  └── skip replied (recipient has answered)  
-  │
-  ▼
-processFollowUps()
-  │
-  ├── pending with < ESCALATE_AFTER reminders → toDigest
-  │     └── sendDigest(): summary email with all open cases
-  │
-  └── pending with >= ESCALATE_AFTER reminders → toEscalate
-        └── sendEscalation(): separate email to big chief + FollowUp/Escalated label
+```mermaid
+flowchart TD
+    A[AWV mail arrives in Gmail inbox] --> B[FollowUp/Active label applied (manual or auto)]
+    B --> C[Every 6h: checkDigests() / checkEscalations()]
+    C --> D[syncLabels() - count reminders, set FollowUp/N label]
+    D --> E[collectPending()]
+    E --> F{Filter: Older than WAIT_DAYS, not Closed, no reply from recipient, no cross-thread reply}
+    F --> G[pending list with thread, subject, ticketCode, reminderCount, sentDate, context]
+    G --> H{Split: reminderCount < ESCALATE_AFTER?}
+    H -->|Yes| I[toDigest → sendDigest(): summary email to mobiliteit@...]
+    H -->|No & not escalated| J[toEscalate → sendEscalation(): separate email to big chief + FollowUp/Escalated label]
+    I --> K[Next cycle: escalated threads stay in pending (in digest), no new escalation for already escalated]
+    J --> K
 ```
 
 **✅ After fix:** Escalated threads stay in the digest! They won't be re-escalated, but regular reminder digests continue until the case is closed.
@@ -79,19 +73,19 @@ Works on any inbox, not tied to specific recipients. Uses Gemini AI to generate 
 
 **Flow:**
 
-```
-Apply remind-every/2weeks to any email in Gmail
-       │
-       ▼
-Every 6h: checkReminders()
-  │
-  ├── Step 1: autoPauseOnReply()
-  │     └── Recipient replied? → apply remind-every/on-hold (pause)
-  │
-  └── Step 2: send reminders
-        └── Filter out on-hold
-              └── Interval elapsed since last message from Aldo?
-                    └── Yes → AI reminder (Gemini) in language of original email
+```mermaid
+flowchart TD
+    A[Apply remind-every/2weeks to any email in Gmail] --> B[Every 6h: checkReminders()]
+    B --> C[Step 1: autoPauseOnReply()]
+    C --> D{For each remind-every/* thread: Has recipient replied? (not Aldo, not AWV system mails)}
+    D -->|Yes| E[Apply remind-every/on-hold label ⏸]
+    D -->|No| F[Do nothing]
+    E --> G[Step 2: Send reminders]
+    F --> G
+    G --> H{Filter: has remind-every/* label, NOT remind-every/on-hold}
+    H --> I[For each active thread: Interval elapsed since last message from Aldo? (manual or auto)]
+    I -->|Yes| J[Generate reminder: 1. Detect language (NL/EN), 2. Gemini prompt, 3. Send as threaded reply]
+    I -->|No| K[Skip, wait for next check]
 ```
 
 **Your control:**
@@ -110,26 +104,51 @@ Every 6h: checkReminders()
 
 ---
 
-## 🔑 Setup: Script Properties
+### 1. First-Time Setup (One-Time Only)
 
-Both projects need the following **Script Properties** set in the Apps Script editor:
+**For both projects**, you must configure Script Properties before the scripts can run:
 
-1. Go to [script.google.com](https://script.google.com/home/projects) → open your project
-2. Click **Project Settings** (gear icon) → **Script Properties**
-3. Add:
+1. Open your project in the Apps Script editor:
+   - **LabelReminder**: https://script.google.com/d/1ILoH9E1JGxuG_T-k4fDcJWnvF6Fl8LPBdYD0COerNIk5z6fhknbhYSCw/edit
+   - **FollowUpReminder**: https://script.google.com/d/1BC9oGoHqrkQMO6fUIzTT7Hs_X4tRMB4ZOjXUrSUgMwa6NLUJ73GZLT_u/edit
 
-| Property | Description |
-|---|---|
-| `GEMINI_API_KEY` | Required. Comma-separated for multi-key fallback. |
-| `FREE_LLM_API_KEY` | Optional fallback. FreeLLMAPI key (self-hosted). |
+2. Go to **Project Settings** (gear icon) → **Script Properties**
 
-### AI Provider Waterfall
+3. Add the following properties:
 
+| Property | Required | Description |
+|---|---|---|
+| `GEMINI_API_KEY` | ✅ Yes | Comma-separated Gemini API keys for multi-key fallback |
+| `FREE_LLM_API_KEY` | ❌ Optional | Self-hosted FreeLLMAPI key (fallback if Gemini fails) |
+| `OPENROUTER_API_KEY` | ❌ Optional | OpenRouter API key (3rd-tier fallback) |
+
+4. Save the changes
+
+5. Run the setup function once per project:
+```bash
+cd ~/dev/06-apps-script-google/LabelReminder
+clasp run setup
 ```
-1. Gemini (multi-key fallback)  ← primary, tries keys in order
-2. FreeLLMAPI (self-hosted)     ← fallback if Gemini fails
-3. Fallback template             ← if both AI providers fail
+
+```bash
+cd ~/dev/06-apps-script-google/FollowUpReminder
+clasp run setup
 ```
+
+### 2. Initial Test
+After setup, verify everything works:
+```bash
+# LabelReminder
+cd LabelReminder && clasp run previewReminders
+clasp run dryRun
+
+# FollowUpReminder
+cd FollowUpReminder && clasp run previewReminders
+clasp run dryRun
+```
+
+### 3. Go Live
+Once you're satisfied with the drafts, set `CONFIG.CREATE_DRAFTS = false` in the code to send real emails.
 
 ---
 
@@ -146,30 +165,6 @@ Both projects need the following **Script Properties** set in the Apps Script ed
 
 ---
 
-## 🚀 Local Development
-
-Scripts are exported from Google Apps Script and live in this repo.
-Edit locally, test in the Apps Script editor, and commit.
-
-```bash
-# Structure
-gmail-reminder-scripts/
-├── shared/
-│   └── AIProviders.gs     # Shared AI waterfall (deployed to both projects)
-├── FollowUpReminder/
-│   ├── Code.gs            # Main script
-│   ├── Test.gs            # Tests
-│   └── appsscript.json    # Manifest
-│   └── AIProviders.test.gs# AI integration tests
-├── LabelReminder/
-│   ├── Code.gs            # Main script
-│   ├── Test.gs            # Tests
-│   └── appsscript.json    # Manifest
-├── scripts/
-│   └── validate.js        # Local validation script
-├── .github/
-│   └── workflows/
-│       └── validate.yml   # CI syntax + function check
 ## 🚀 Local Development & CLI
 
 Scripts are exported from Google Apps Script and live in this repo.
@@ -178,6 +173,7 @@ Edit locally, test with clasp, and commit.
 ### 🔌 Run Functions from the CLI (`clasp run`)
 
 **Quick reference:**
+
 ```bash
 # From project root
 cd ~/dev/06-apps-script-google
@@ -208,6 +204,7 @@ clasp open-logs               # Open Cloud Logging
 ### 📝 Log Files
 
 Logs are automatically saved to `~/dev/06-apps-script-google/logs/` when run from this repository:
+
 ```bash
 # Check recent logs
 cat ~/dev/06-apps-script-google/logs/LabelReminder.log
@@ -216,4 +213,63 @@ cat ~/dev/06-apps-script-google/logs/LabelReminder.log
 tail -f ~/dev/06-apps-script-google/logs/LabelReminder.log
 ```
 
+### 📊 Label Lifecycle (per thread)
+
+```mermaid
+stateDiagram-v2
+    [*] --> Nieuw: remind-every/2weeks applied
+    Nieuw --> Ontvanger_replyt: + remind-every/on-hold
+    Ontvanger_replyt --> Nieuw: You remove on-hold
+    Nieuw --> [*]: You remove both labels (out of scope)
+    Nieuw --> Nieuw: You reply manually (timer reset)
+```
+
+### ⏱ Timing
+
+```mermaid
+gantt
+    title Trigger Schedule
+    dateFormat  HH:mm
+    axisFormat  %H:%M
+    
+    section FollowUpReminder
+    checkDigests       :a1, 00:00, 6h
+    checkEscalations   :a2, 00:00, 6h
+    
+    section LabelReminder
+    checkReminders     :b1, 00:00, 6h
+```
+
 ---
+
+## About
+
+Gmail reminder scripts: FollowUpReminder (AWV dossier opvolging) + LabelReminder (universele AI herinneringen via labels)
+
+### Resources
+
+[Readme](https://github.com/Aldo-f/script.google#readme-ov-file)
+
+[Activity](https://github.com/Aldo-f/script.google/activity)
+
+### Stars
+
+**0** stars
+
+### Watchers
+
+**0** watching
+
+### Forks
+
+[**0** forks](https://github.com/Aldo-f/script.google/forks)
+
+[Report repository](https://github.com/contact/report-content?content_url=https%3A%2F%2Fgithub.com%2FAldo-f%2Fscript.google&report=Aldo-f+%28user%29)
+
+## Releases
+
+## Packages
+
+## Contributors
+
+## Languages

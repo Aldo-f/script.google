@@ -741,10 +741,11 @@ function setup() {
   log('Volgende stappen:');
   log('  1. Voeg GEMINI_API_KEY toe in Project Settings → Script Properties (komma-gescheiden voor meerdere keys)');
   log('  2. Voeg FREE_LLM_API_KEY toe in Project Settings → Script Properties (fallback provider)');
-  log('  3. Plak een remind-every/* label op een e-mail in Gmail');
-  log('  4. Run previewReminders() om te testen');
-  log('  5. Run dryRun() om drafts te bekijken');
-  log('  6. Zet CONFIG.CREATE_DRAFTS = false om live te gaan');
+  log('  3. Voeg OPENROUTER_API_KEY toe in Project Settings → Script Properties (optionele fallback)');
+  log('  4. Plak een remind-every/* label op een e-mail in Gmail');
+  log('  5. Run previewReminders() om te testen');
+  log('  6. Run dryRun() om drafts te bekijken');
+  log('  7. Zet CONFIG.CREATE_DRAFTS = false om live te gaan');
 }
 
 function dryRun() {
