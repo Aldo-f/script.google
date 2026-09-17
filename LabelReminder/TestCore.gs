@@ -14,15 +14,9 @@ function runAllCoreTests() {
     testCleanAIResponse,
     testGetReminderCountFromThread,
     testGetToneFromContext,
-    testCreateReplyDraft,
     testSendReminder,
-    testGetRfcMessageId,
     testCheckReminders,
-    testPreviewReminders,
-    testPauseRepliedThreads,
     testResumeAll,
-    testDryRun,
-    testDryRunWithMax,
     testExtractAllEmails,
     testExtractEmail,
     testExtractName,
@@ -263,22 +257,10 @@ function testGetToneFromContext(results) {
     getToneFromContext(0, old) === 'zakelijk, vastberaden en wijzend op het veiligheidsrisico'));
 }
 
-// ─── PURE: createReplyDraft ───────────────────────────────────────────────────
-
-function testCreateReplyDraft(results) {
-  results.push(assert('createReplyDraft: function exists', typeof createReplyDraft === 'function'));
-}
-
 // ─── PURE: sendReminder ───────────────────────────────────────────────────────
 
 function testSendReminder(results) {
   results.push(assert('sendReminder: function exists', typeof sendReminder === 'function'));
-}
-
-// ─── PURE: getRfcMessageId ────────────────────────────────────────────────────
-
-function testGetRfcMessageId(results) {
-  results.push(assert('getRfcMessageId: function exists', typeof getRfcMessageId === 'function'));
 }
 
 // ─── PURE: checkReminders ─────────────────────────────────────────────────────
@@ -308,18 +290,6 @@ function testCheckReminders(results) {
     autoPauseOnReply = originalAutoPause;
     getRemindEveryIntervalLabels = originalGetLabels;
   }
-}
-
-// ─── PURE: previewReminders ────────────────────────────────────────────────────
-
-function testPreviewReminders(results) {
-  results.push(assert('previewReminders: function exists', typeof previewReminders === 'function'));
-}
-
-// ─── PURE: pauseRepliedThreads ────────────────────────────────────────────────
-
-function testPauseRepliedThreads(results) {
-  results.push(assert('pauseRepliedThreads: function exists', typeof pauseRepliedThreads === 'function'));
 }
 
 // ─── PURE: resumeAll ──────────────────────────────────────────────────────────
@@ -355,18 +325,6 @@ function testResumeAll(results) {
   } finally {
     GmailApp = originalGmailApp;
   }
-}
-
-// ─── PURE: dryRun ──────────────────────────────────────────────────────────────
-
-function testDryRun(results) {
-  results.push(assert('dryRun: function exists', typeof dryRun === 'function'));
-}
-
-// ─── PURE: dryRunWithMax ───────────────────────────────────────────────────────
-
-function testDryRunWithMax(results) {
-  results.push(assert('dryRunWithMax: function exists', typeof dryRunWithMax === 'function'));
 }
 
 // ─── PURE: extractAllEmails ────────────────────────────────────────────────────

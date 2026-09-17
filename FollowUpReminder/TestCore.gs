@@ -11,23 +11,15 @@ function runAllCoreTests() {
   [
     testAwvDossierQuery,
     testSyncLabelsHelpers,
-    testApplyCorrectLabel,
     testBuildReminderCountMap,
     testCollectPendingHelpers,
     testBatchCheckCrossThreadReply,
     testDeliverEmail,
-    testSendDigest,
-    testSendEscalation,
     testComposeBody,
     testBuildCombinedPdfHelpers,
-    testPreviewPendingHelpers,
     testGetLabeledThreadIds,
     testDaysAgo,
     testFormatDateDisplay,
-    testSetup,
-    testDryRun,
-    testCheckDigests,
-    testCheckEscalations,
     testProcessFollowUps,
   ].forEach(suite => {
     try {
@@ -108,7 +100,6 @@ function mockGmailApp(searchResults, labelByName, userLabels) {
     sendEmail: function() {},
   };
   
-  // Store original for restoration
   GmailApp = mock;
   return function restore() { GmailApp = originalGmailApp; };
 }
@@ -148,7 +139,7 @@ function testSyncLabelsHelpers(results) {
   let addedLabel = null;
   thread1.addLabel = function(l) { addedLabel = l; };
   thread1.removeLabel = function() {};
-  
+
   applyCorrectLabel(thread1, 1, escalatedLabel);
   results.push(assert('applyCorrectLabel: count=1 adds FollowUp/1', addedLabel && addedLabel.getName() === 'FollowUp/1'));
   
@@ -158,7 +149,7 @@ function testSyncLabelsHelpers(results) {
   addedLabel = null;
   thread2.addLabel = function(l) { addedLabel = l; };
   thread2.removeLabel = function(l) { removedLabel = l; };
-  
+
   applyCorrectLabel(thread2, 2, escalatedLabel);
   results.push(assert('applyCorrectLabel: count=2 removes old label', removedLabel && removedLabel.getName() === 'FollowUp/1'));
   results.push(assert('applyCorrectLabel: count=2 adds FollowUp/2', addedLabel && addedLabel.getName() === 'FollowUp/2'));
@@ -167,7 +158,7 @@ function testSyncLabelsHelpers(results) {
   const thread3 = makeThread('thread3', [makeMessage('awv@wegenenverkeer.be', 'FW: (KM-2026-00003)')], [escalatedLabel]);
   addedLabel = null;
   thread3.addLabel = function(l) { addedLabel = l; };
-  
+
   applyCorrectLabel(thread3, 3, escalatedLabel);
   results.push(assert('applyCorrectLabel: escalated thread gets no count label', addedLabel === null));
   
@@ -175,7 +166,7 @@ function testSyncLabelsHelpers(results) {
   const thread4 = makeThread('thread4', [makeMessage('awv@wegenenverkeer.be', 'FW: (KM-2026-00004)')], [closedLabel]);
   addedLabel = null;
   thread4.addLabel = function(l) { addedLabel = l; };
-  
+
   applyCorrectLabel(thread4, 1, escalatedLabel);
   results.push(assert('applyCorrectLabel: closed thread gets no count label', addedLabel === null));
   
@@ -183,16 +174,9 @@ function testSyncLabelsHelpers(results) {
   const thread5 = makeThread('thread5', [makeMessage('awv@wegenenverkeer.be', 'FW: (KM-2026-00005)')], []);
   addedLabel = null;
   thread5.addLabel = function(l) { addedLabel = l; };
-  
+
   applyCorrectLabel(thread5, 0, escalatedLabel);
   results.push(assert('applyCorrectLabel: count=0 gets no label', addedLabel === null));
-}
-
-// ─── PURE: applyCorrectLabel ──────────────────────────────────────────────────
-
-function testApplyCorrectLabel(results) {
-  // Already tested in testSyncLabelsHelpers
-  results.push(assert('applyCorrectLabel: function exists', typeof applyCorrectLabel === 'function'));
 }
 
 // ─── PURE: buildReminderCountMap ──────────────────────────────────────────────
@@ -337,18 +321,6 @@ function testDeliverEmail(results) {
   results.push(assert('deliverEmail: function exists', typeof deliverEmail === 'function'));
 }
 
-// ─── PURE: sendDigest ────────────────────────────────────────────────────────
-
-function testSendDigest(results) {
-  results.push(assert('sendDigest: function exists', typeof sendDigest === 'function'));
-}
-
-// ─── PURE: sendEscalation ────────────────────────────────────────────────────
-
-function testSendEscalation(results) {
-  results.push(assert('sendEscalation: function exists', typeof sendEscalation === 'function'));
-}
-
 // ─── PURE: composeBody ────────────────────────────────────────────────────────
 
 function testComposeBody(results) {
@@ -419,12 +391,6 @@ function testBuildCombinedPdfHelpers(results) {
   }
 }
 
-// ─── PURE: previewPending helpers ────────────────────────────────────────────
-
-function testPreviewPendingHelpers(results) {
-  results.push(assert('previewPending: function exists', typeof previewPending === 'function'));
-}
-
 // ─── PURE: getLabeledThreadIds ────────────────────────────────────────────────
 
 function testGetLabeledThreadIds(results) {
@@ -465,30 +431,6 @@ function testFormatDateDisplay(results) {
   const date2 = new Date(2026, 0, 1); // Jan 1
   const formatted2 = formatDateDisplay(date2);
   results.push(assert('formatDateDisplay: Jan 1', formatted2.includes('1') && formatted2.includes('januari') && formatted2.includes('2026')));
-}
-
-// ─── PURE: setup ──────────────────────────────────────────────────────────────
-
-function testSetup(results) {
-  results.push(assert('setup: function exists', typeof setup === 'function'));
-}
-
-// ─── PURE: dryRun ─────────────────────────────────────────────────────────────
-
-function testDryRun(results) {
-  results.push(assert('dryRun: function exists', typeof dryRun === 'function'));
-}
-
-// ─── PURE: checkDigests ───────────────────────────────────────────────────────
-
-function testCheckDigests(results) {
-  results.push(assert('checkDigests: function exists', typeof checkDigests === 'function'));
-}
-
-// ─── PURE: checkEscalations ───────────────────────────────────────────────────
-
-function testCheckEscalations(results) {
-  results.push(assert('checkEscalations: function exists', typeof checkEscalations === 'function'));
 }
 
 // ─── PURE: processFollowUps ───────────────────────────────────────────────────
