@@ -44,16 +44,16 @@ Scans Gmail for unanswered cases, sends summary digest emails, and escalates stu
 
 ```mermaid
 flowchart TD
-    A[AWV mail arrives in Gmail inbox] --> B[FollowUp/Active label applied (manual or auto)]
-    B --> C[Every 6h: checkDigests() / checkEscalations()]
-    C --> D[syncLabels() - count reminders, set FollowUp/N label]
-    D --> E[collectPending()]
+    A[AWV mail arrives in Gmail inbox] --> B[FollowUp/Active label applied \\(manual or auto\\)]
+    B --> C[Every 6h: checkDigests\\(\\) / checkEscalations\\(\\)]
+    C --> D[syncLabels\\(\\) - count reminders, set FollowUp/N label]
+    D --> E[collectPending\\(\\)]
     E --> F{Filter: Older than WAIT_DAYS, not Closed, no reply from recipient, no cross-thread reply}
     F --> G[pending list with thread, subject, ticketCode, reminderCount, sentDate, context]
-    G --> H{Split: reminderCount < ESCALATE_AFTER?}
-    H -->|Yes| I[toDigest → sendDigest(): summary email to mobiliteit@...]
-    H -->|No & not escalated| J[toEscalate → sendEscalation(): separate email to big chief + FollowUp/Escalated label]
-    I --> K[Next cycle: escalated threads stay in pending (in digest), no new escalation for already escalated]
+    G --> H{Split: reminderCount \u003c ESCALATE_AFTER?}
+    H -->|Yes| I[toDigest \u2192 sendDigest\\(\\): summary email to mobiliteit@...]
+    H -->|No & not escalated| J[toEscalate \u2192 sendEscalation\\(\\): separate email to big chief + FollowUp/Escalated label]
+    I --> K[Next cycle: escalated threads stay in pending \\(in digest\\), no new escalation for already escalated]
     J --> K
 ```
 
@@ -75,16 +75,16 @@ Works on any inbox, not tied to specific recipients. Uses Gemini AI to generate 
 
 ```mermaid
 flowchart TD
-    A[Apply remind-every/2weeks to any email in Gmail] --> B[Every 6h: checkReminders()]
-    B --> C[Step 1: autoPauseOnReply()]
-    C --> D{For each remind-every/* thread: Has recipient replied? (not Aldo, not AWV system mails)}
+    A[Apply remind-every/2weeks to any email in Gmail] --> B[Every 6h: checkReminders\\(\\)]
+    B --> C[Step 1: autoPauseOnReply\\(\\)]
+    C --> D{For each remind-every/* thread: Has recipient replied? \\(not Aldo, not AWV system mails\\)}
     D -->|Yes| E[Apply remind-every/on-hold label ⏸]
     D -->|No| F[Do nothing]
     E --> G[Step 2: Send reminders]
     F --> G
     G --> H{Filter: has remind-every/* label, NOT remind-every/on-hold}
-    H --> I[For each active thread: Interval elapsed since last message from Aldo? (manual or auto)]
-    I -->|Yes| J[Generate reminder: 1. Detect language (NL/EN), 2. Gemini prompt, 3. Send as threaded reply]
+    H --> I[For each active thread: Interval elapsed since last message from Aldo? \\(manual or auto\\)]
+    I -->|Yes| J[Generate reminder: 1. Detect language \\(NL/EN\\), 2. Gemini prompt, 3. Send as threaded reply]
     I -->|No| K[Skip, wait for next check]
 ```
 
