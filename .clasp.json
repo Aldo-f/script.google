@@ -10,9 +10,11 @@
     "LabelReminder/appsscript.json",
     "LabelReminder/Code.gs",
     "LabelReminder/Test.gs",
+    "LabelReminder/TestCore.gs",
     "FollowUpReminder/appsscript.json",
     "FollowUpReminder/Code.gs",
     "FollowUpReminder/Test.gs",
-    "FollowUpReminder/AIProviders.test.gs"
+    "FollowUpReminder/AIProviders.test.gs",
+    "FollowUpReminder/TestCore.gs"
   ]
 }

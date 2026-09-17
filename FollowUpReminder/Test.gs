@@ -388,3 +388,23 @@ function testEscalationSplit(results) {
   results.push(assert('escalation split: count=3 also escalates',              toEscalate.some(p => p.ticketCode === 'KM-2026-00004')));
   results.push(assert('escalation split: count=0 stays in digest',             toDigest.some(p => p.ticketCode === 'KM-2026-00003')));
 }
+
+// ─── MASTER RUNNER ───────────────────────────────────────────────────────────
+
+/**
+ * Run ALL tests across all test files
+ */
+function runAllTestsMaster() {
+  log('=== MASTER TEST RUNNER ===');
+  
+  log('\n--- Running Test.gs tests ---');
+  runAllTests();
+  
+  log('\n--- Running TestCore.gs tests ---');
+  runAllCoreTests();
+  
+  log('\n--- Running AIProviders.test.gs tests ---');
+  runAllAITests();
+  
+  log('=== ALL TESTS COMPLETE ===');
+}

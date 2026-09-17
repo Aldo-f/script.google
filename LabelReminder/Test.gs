@@ -305,3 +305,20 @@ function testFindReminderRecipient(results) {
   const fallbackRecip  = findReminderRecipient(myOnly);
   results.push(assert('findReminderRecipient: fallback exists', fallbackRecip.email !== null));
 }
+
+// ─── MASTER RUNNER ───────────────────────────────────────────────────────────
+
+/**
+ * Run ALL tests across all test files
+ */
+function runAllTestsMaster() {
+  log('=== MASTER TEST RUNNER ===');
+  
+  log('\n--- Running Test.gs tests ---');
+  runAllTests();
+  
+  log('\n--- Running TestCore.gs tests ---');
+  runAllCoreTests();
+  
+  log('=== ALL TESTS COMPLETE ===');
+}

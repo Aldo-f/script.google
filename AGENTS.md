@@ -75,8 +75,7 @@ script.google/
 - **Note**: Gemini uses `gemini-2.5-flash` (latest free model) with automatic fallback to other providers when quota is exceeded.
 
 ## Testing Conventions
-- Tests live in `LabelReminder/Test.gs` and `FollowUpReminder/Test.gs` (pure‑function style, inline assertions).
-- Integration test for AI providers is `FollowUpReminder/AIProviders.test.gs`.
+- Tests live in `LabelReminder/Test.gs`, `LabelReminder/TestCore.gs` and `FollowUpReminder/Test.gs`, `FollowUpReminder/TestCore.gs`, `FollowUpReminder/AIProviders.test.gs` (pure‑function style, inline assertions).
 - New tests must be listed in `.clasp.json` under `filePushOrder`.
 - Run `npm run validate` to ensure tests compile.
 - **Pattern**: `runAllTests()` runs suites wrapped in try/catch. Custom `assert(label, cond)` helper logs check/cross. Mock factories prefixed `make*`.

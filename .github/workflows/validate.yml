@@ -79,3 +79,21 @@ jobs:
             echo "⚠️  Potential hardcoded secrets found (review manually)"
           fi
           echo "✅ Scan complete"
+
+      - name: Run tests via clasp (requires test project)
+        if: false  # Enable when CLASP_TEST_PROJECT_ID secret is set
+        run: |
+          echo "Running tests in Apps Script..."
+          # Push to test project
+          clasp login --cred <(echo "$CLASP_CREDENTIALS")
+          clasp clone $CLASP_TEST_PROJECT_ID --rootDir /tmp/test-project
+          cd /tmp/test-project
+          # Push all files including tests
+          clasp push
+          # Run all test suites
+          clasp run runAllTests
+          clasp run runAllAITests
+          clasp run runAllCoreTests
+        env:
+          CLASP_CREDENTIALS: ${{ secrets.CLASP_CREDENTIALS }}
+          CLASP_TEST_PROJECT_ID: ${{ secrets.CLASP_TEST_PROJECT_ID }}
