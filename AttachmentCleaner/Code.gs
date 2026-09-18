@@ -360,17 +360,27 @@ function processAttachments() {
         const messageId = message.getId();
         Logger.log('[PROCESS] Message ID: ' + messageId + ' — Subject: ' + message.getSubject() + ' — Attachments: ' + attachments.length);
 
-        // 1. Save all attachments to Drive
+        const msgDate = Utilities.formatDate(message.getDate(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+        const safeSubject = (message.getSubject() || 'geen-onderwerp').replace(/[\\/:*?"<>|]/g, '-');
+        const subfolderName = msgDate + ' - ' + safeSubject;
+        const emailFolder = folder.createFolder(subfolderName);
+        Logger.log('[DRIVE] Email folder: ' + subfolderName);
+
+        // 1. Save original .eml + attachments to email subfolder
         const savedFiles = [];
+        const rawMessage = getRawMessage(messageId);
+        const emlBlob = Utilities.newBlob(Utilities.base64Decode(rawMessage)).setName(subfolderName + '.eml');
+        emailFolder.createFile(emlBlob);
+        Logger.log('[DRIVE] Saved .eml: ' + subfolderName + '.eml');
+
         for (const attachment of attachments) {
-          const saved = saveAttachment(attachment, folder, threadId);
+          const saved = saveAttachment(attachment, emailFolder, threadId);
           savedFiles.push(saved);
           totalAttachments++;
           totalBytes += saved.size;
         }
 
-        // 2. Get the raw message and strip attachments
-        const rawMessage = getRawMessage(messageId);
+        // 2. Strip attachments from already-fetched raw message
         const attachmentNames = attachments.map(a => a.getName());
         const cleanRaw = stripAttachmentsFromRaw(rawMessage, attachmentNames);
 
