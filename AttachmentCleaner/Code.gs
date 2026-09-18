@@ -26,7 +26,7 @@
  */
 const CONFIG = {
   /** Gmail search query. Matches messages with large attachments that haven't been processed yet. */
-  SEARCH_QUERY: 'has:attachment larger:10M -label:bijlagen-verwerkt',
+  SEARCH_QUERY: 'has:attachment larger:10M',
 
   /** Name of the Google Drive folder where attachments will be backed up. */
   DRIVE_FOLDER_NAME: 'Gmail Bijlagen Backup',
@@ -296,22 +296,12 @@ function appendNoteToTextPart(body, note) {
  * @returns {object} The inserted message result from Gmail API
  */
 function insertRewrittenMessage(rawMessage, threadId, processedLabel) {
-  // Build the Gmail API request
-  const resource = {
-    labelIds: [processedLabel.getId()],
-  };
+  const labelId = processedLabel ? processedLabel.getId() : null;
+  const resource = labelId ? { labelIds: [labelId] } : {};
+  const options = { threadId: threadId, internalDateSource: 'dateHeader' };
+  if (labelId) options.addLabelIds = [labelId];
 
-  const result = Gmail.Users.Messages.insert(
-    {
-      labelIds: [processedLabel.getId()],
-    },
-    rawMessage,
-    {
-      threadId: threadId,
-      internalDateSource: 'dateHeader',
-      addLabelIds: [processedLabel.getId()],
-    }
-  );
+  const result = Gmail.Users.Messages.insert(resource, rawMessage, options);
 
   Logger.log('[REBUILD] Inserted rewritten message into thread ' + threadId + ' (new message ID: ' + result.id + ')');
   return result;
@@ -336,7 +326,8 @@ function processAttachments() {
   const startTime = new Date();
 
   const folder = getOrCreateBackupFolder();
-  const processedLabel = getOrCreateLabel(CONFIG.PROCESSED_LABEL);
+  // No processed label — so adjusting the 10MB limit won't skip messages
+  const processedLabel = null;
 
   const threads = GmailApp.search(CONFIG.SEARCH_QUERY, 0, CONFIG.BATCH_SIZE);
   Logger.log('[SEARCH] Found ' + threads.length + ' thread(s) to process (batch size: ' + CONFIG.BATCH_SIZE + ')');
@@ -395,8 +386,8 @@ function processAttachments() {
           Logger.log('[TRASH] Original message trashed: ' + messageId);
         }
 
-        // 5. Apply the processed label to the thread
-        thread.addLabel(processedLabel);
+        // 5. No label added (so 10MB limit stays adjustable)
+        // (label intentionally removed — see user's instruction)
 
         processed++;
       }
