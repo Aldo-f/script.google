@@ -168,7 +168,7 @@ function getRawMessage(messageId) {
  */
 function stripAttachmentsFromRaw(rawMessage, attachmentNames) {
   // Gmail API returns raw messages as base64url-encoded
-  const mimeMessage = Utilities.new MimeMessage();
+  const mimeMessage = Utilities.newMimeMessage();
   // Actually, let's use the Gmail API raw format approach.
   // The raw field is base64url-encoded RFC 2822.
 
