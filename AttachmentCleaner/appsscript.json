@@ -1,0 +1,48 @@
+{
+  "timeZone": "Europe/Brussels",
+  "dependencies": {
+    "Gmail": "v1",
+    "Drive": "v1",
+    "UrlFetchApp": "v1"
+  },
+  "executionApi": {
+    "Gmail": {
+      "enabled": true,
+      "version": "v1"
+    },
+    "Drive": {
+      "enabled": true,
+      "version": "v1"
+    },
+    "UrlFetchApp": {
+      "enabled": true,
+      "version": "v1"
+    }
+  },
+  "permissions": {
+    "Gmail": {
+      "read": "messages.list",
+      "read": "messages.get",
+      "read": "messages.update",
+      "write": "messages.insert",
+      "write": "messages.delete",
+      "write": "drive.file",
+      "write": "drive.folder"
+    },
+    "Drive": {
+      "read": "files.list",
+      "read": "files.get",
+      "write": "files.create",
+      "write": "files.delete",
+      "write": "folders.create",
+      "write": "folders.get"
+    },
+    "UrlFetchApp": {
+      "read": "webRequest"
+    }
+  },
+  "projectSettings": {
+    "labelPrefix": "Gmail Attachment Cleaner",
+    "dailyCleanup": true
+  }
+}
