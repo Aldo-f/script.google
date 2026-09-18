@@ -167,11 +167,7 @@ function getRawMessage(messageId) {
  * @returns {string} Base64-encoded clean RFC 2822 message
  */
 function stripAttachmentsFromRaw(rawMessage, attachmentNames) {
-  // Gmail API returns raw messages as base64url-encoded
-  const mimeMessage = Utilities.newMimeMessage();
-  // Actually, let's use the Gmail API raw format approach.
-  // The raw field is base64url-encoded RFC 2822.
-
+  // Gmail API returns raw messages as base64url-encoded RFC 2822 message.
   const decoded = Utilities.base64Decode(rawMessage);
   const messageString = Utilities.newBlob(decoded).getDataAsString();
 
@@ -362,7 +358,7 @@ function processAttachments() {
         if (attachments.length === 0) continue;
 
         const messageId = message.getId();
-        Logger.log('[PROCESS] Message ID: ' + messageId + ' — Attachments: ' + attachments.length);
+        Logger.log('[PROCESS] Message ID: ' + messageId + ' — Subject: ' + message.getSubject() + ' — Attachments: ' + attachments.length);
 
         // 1. Save all attachments to Drive
         const savedFiles = [];
