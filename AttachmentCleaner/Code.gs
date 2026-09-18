@@ -330,6 +330,12 @@ function processAttachments() {
   const processedLabel = null;
 
   const threads = GmailApp.search(CONFIG.SEARCH_QUERY, 0, CONFIG.BATCH_SIZE);
+  // Sort oldest first (by first message date)
+  threads.sort((a, b) => {
+    const msgA = a.getMessages()[0];
+    const msgB = b.getMessages()[0];
+    return msgA.getDate().getTime() - msgB.getDate().getTime();
+  });
   Logger.log('[SEARCH] Found ' + threads.length + ' thread(s) to process (batch size: ' + CONFIG.BATCH_SIZE + ')');
 
   let processed = 0;
