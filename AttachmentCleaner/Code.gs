@@ -438,9 +438,35 @@ function getOrCreateLabel(name) {
  * Runs a single test iteration with verbose logging.
  * Processes only ONE thread — safe for manual testing.
  */
+/**
+ * Test runner: verifieert GmailApp-integratie en draait alle core tests.
+ * Handig voor `clasp run test`.
+ */
+function test() {
+  Logger.log('=== GmailApp integratie check ===');
+  const hasGmailApp = typeof GmailApp !== 'undefined' && typeof GmailApp.search === 'function';
+  Logger.log('GmailApp beschikbaar: ' + hasGmailApp);
+  Logger.log('GmailApp.search: ' + typeof GmailApp.search);
+  Logger.log('=== Core tests ===');
+  if (typeof runAllCoreTests === 'function') {
+    runAllCoreTests();
+  } else {
+    Logger.log('runAllCoreTests niet gevonden (TestCore.gs mogelijk niet geladen).');
+  }
+}
+
 function dryRun() {
   CONFIG.DRY_RUN = true;
-  Logger.log('[DRY-RUN] Running single-iteration dry run');
+  Logger.log('[DRY-RUN] Running oldest-first, max 1, >10MB attachment');
+  // Sort oldest first, limit to 1 for safe manual test
+  const threads = GmailApp.search(CONFIG.SEARCH_QUERY, 0, CONFIG.BATCH_SIZE);
+  threads.sort((a, b) => {
+    const msgA = a.getMessages()[0];
+    const msgB = b.getMessages()[0];
+    return msgA.getDate().getTime() - msgB.getDate().getTime();
+  });
+  if (threads.length > 1) threads.splice(1);
+  Logger.log('[DRY-RUN] Testing oldest of ' + threads.length + ' thread(s)');
   processAttachments();
   CONFIG.DRY_RUN = false;
 }
@@ -473,4 +499,29 @@ function previewAttachments() {
   });
 
   Logger.log('[PREVIEW] Total: ' + totalAttachments + ' attachment(s), ' + (totalBytes / (1024 * 1024)).toFixed(2) + ' MB');
+}
+// ─── TRIGGER MANAGEMENT ───────────────────────────────────────────────────────
+
+/**
+ * Creates an hourly trigger to run processAttachments automatically.
+ * Call once manually to enable periodic cleanup of large attachments.
+ */
+function setupTrigger() {
+  // Remove any existing triggers first to avoid duplicates
+  const triggers = ScriptApp.getProjectTriggers();
+  triggers.forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger('processAttachments')
+    .timeBased()
+    .everyHours(1)
+    .create();
+  Logger.log('[TRIGGER] Hourly processAttachments trigger created.');
+}
+
+/**
+ * Removes all project triggers (use to stop automatic processing).
+ */
+function removeTrigger() {
+  const triggers = ScriptApp.getProjectTriggers();
+  triggers.forEach(t => ScriptApp.deleteTrigger(t));
+  Logger.log('[TRIGGER] All triggers removed.');
 }
