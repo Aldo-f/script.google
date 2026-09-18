@@ -6,7 +6,7 @@
 import { readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
 
-const PROJECTS = ['LabelReminder', 'FollowUpReminder'];
+const PROJECTS = ['LabelReminder', 'FollowUpReminder', 'AttachmentCleaner'];
 
 // Shared functions deployed to both projects via shared/AIProviders.gs
 const SHARED_FUNCTIONS = [
@@ -22,6 +22,10 @@ const REQUIRED_FUNCTIONS = {
   FollowUpReminder: [
     'checkDigests', 'checkEscalations', 'processFollowUps', 'collectPending',
     'sendDigest', 'sendEscalation', 'rewriteProse', 'composeBody', 'setup', 'syncLabels'
+  ],
+  AttachmentCleaner: [
+    'getOrCreateBackupFolder', 'saveAttachment', 'processAttachments',
+    'dryRun', 'previewAttachments'
   ],
 };
 

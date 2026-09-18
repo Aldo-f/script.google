@@ -252,7 +252,7 @@ function stripAttachmentsFromRaw(rawMessage, attachmentNames) {
  * @returns {string} HTML + plain text note
  */
 function buildAttachmentNote(attachmentNames) {
-  const lines = ['Met geen bijlage(n) wegggehaald en opgeslagen in Google Drive:'];
+  const lines = ['Met bijlage(n) weggehaald en opgeslagen in Google Drive:'];
   attachmentNames.forEach(name => {
     lines.push('[Bijlage "' + name + '" verwijderd en opgeslagen in Google Drive]');
   });
@@ -280,7 +280,7 @@ function appendNoteToTextPart(body, note) {
     'Content-Transfer-Encoding: 7bit',
     'Content-Disposition: inline',
     '',
-    ---,
+    '',
     note,
     '',
     '--' + boundary + '--',
@@ -417,10 +417,6 @@ function processAttachments() {
 
   return { processed, totalAttachments, totalBytes, errors };
 }
-
-// ─── TRIGGER SETUP ────────────────────────────────────────────────────────────
-
-
 
 // ─── HELPERS ───────────────────────────────────────────────────────────────────
 
