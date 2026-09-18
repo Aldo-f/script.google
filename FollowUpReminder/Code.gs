@@ -19,7 +19,8 @@
 
 const CONFIG = {
   DRY_RUN:        false,
-  CREATE_DRAFTS:  false,
+  CREATE_DRAFTS:  true,
+  MAX_REMINDERS:  0,
   WAIT_DAYS:      7,
   ESCALATE_AFTER: 3,
   MY_EMAIL:       'aldo.fieuw@gmail.com',
@@ -34,6 +35,7 @@ const CONFIG = {
   },
 
   TICKET_REGEX: /[A-Z]{2,}-\d{4,}/g,
+  MAX_REMINDERS:  0,
 
   // AI Providers — waterfall: FreeLLMAPI first, then Gemini
   FREE_LLM_API_URL: 'https://freellm.aldof.duckdns.org/v1/chat/completions',
@@ -876,4 +878,95 @@ function dryRun() {
 
   CONFIG.DRY_RUN       = prevDry;
   CONFIG.CREATE_DRAFTS = prevDrafts;
+  CONFIG.MAX_REMINDERS = maxReminders;
+}
+
+/**
+ * Dry run with optional max limit.
+ * @param {number} maxReminders - Maximum number of reminders to process (default: 3)
+ * @returns {string} Summary of processed reminders
+ */
+function dryRunWithMax(maxReminders) {
+  const prevDry    = CONFIG.DRY_RUN;
+  const prevDrafts = CONFIG.CREATE_DRAFTS;
+  const prevMax    = CONFIG.MAX_REMINDERS;
+
+  CONFIG.DRY_RUN       = false;
+  CONFIG.CREATE_DRAFTS = true;
+  CONFIG.MAX_REMINDERS = maxReminders;
+
+  perfLog.reset();
+  perfLog('dryRunWithMax.start');
+
+  syncLabels();
+
+  let processed = 0;
+  CONFIG.WATCHLIST.forEach(entry => {
+    const countMap = buildReminderCountMap(entry.address);
+    let pending    = collectPending(entry.address, daysAgo(CONFIG.WAIT_DAYS),
+      getLabeledThreadIds(getOrCreateLabel(CONFIG.LABELS.ESCALATED)),
+      getLabeledThreadIds(getOrCreateLabel(CONFIG.LABELS.CLOSED)), countMap);
+
+    if (CONFIG.MAX_REMINDERS > 0 && pending.length > CONFIG.MAX_REMINDERS) {
+      pending = pending.slice(0, CONFIG.MAX_REMINDERS);
+    }
+
+    if (pending.length > 0) {
+      sendDigest(entry, pending);
+      processed += pending.length;
+    }
+  });
+
+  perfLog('dryRunWithMax.end');
+
+  CONFIG.DRY_RUN       = prevDry;
+  CONFIG.CREATE_DRAFTS = prevDrafts;
+  CONFIG.MAX_REMINDERS = prevMax;
+
+  return `[MAX ${CONFIG.MAX_REMINDERS || prevMax}] Created ${processed} draft(s).`;
+}
+
+/**
+ * Dry run with optional max limit.
+ * @param {number} maxReminders - Maximum number of reminders to process (default: 3)
+ * @returns {string} Summary of processed reminders
+ */
+function dryRunWithMax(maxReminders) {
+  const prevDry    = CONFIG.DRY_RUN;
+  const prevDrafts = CONFIG.CREATE_DRAFTS;
+  const prevMax    = CONFIG.MAX_REMINDERS;
+
+  CONFIG.DRY_RUN       = false;
+  CONFIG.CREATE_DRAFTS = true;
+  CONFIG.MAX_REMINDERS = maxReminders;
+
+  perfLog.reset();
+  perfLog('dryRunWithMax.start');
+
+  syncLabels();
+
+  let processed = 0;
+  CONFIG.WATCHLIST.forEach(entry => {
+    const countMap = buildReminderCountMap(entry.address);
+    let pending    = collectPending(entry.address, daysAgo(CONFIG.WAIT_DAYS),
+      getLabeledThreadIds(getOrCreateLabel(CONFIG.LABELS.ESCALATED)),
+      getLabeledThreadIds(getOrCreateLabel(CONFIG.LABELS.CLOSED)), countMap);
+
+    if (CONFIG.MAX_REMINDERS > 0 && pending.length > CONFIG.MAX_REMINDERS) {
+      pending = pending.slice(0, CONFIG.MAX_REMINDERS);
+    }
+
+    if (pending.length > 0) {
+      sendDigest(entry, pending);
+      processed += pending.length;
+    }
+  });
+
+  perfLog('dryRunWithMax.end');
+
+  CONFIG.DRY_RUN       = prevDry;
+  CONFIG.CREATE_DRAFTS = prevDrafts;
+  CONFIG.MAX_REMINDERS = prevMax;
+
+  return `[MAX ${CONFIG.MAX_REMINDERS || prevMax}] Created ${processed} draft(s).`;
 }
