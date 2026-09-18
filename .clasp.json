@@ -1,7 +1,8 @@
 {
   "projects": {
     "LabelReminder": "1ILoH9E1JGxuG_T-k4fDcJWnvF6Fl8LPBdYD0COerNIk5z6fhknbhYSCw",
-    "FollowUpReminder": "1BC9oGoHqrkQMO6fUIzTT7Hs_X4tRMB4ZOjXUrSUgMwa6NLUJ73GZLT_u"
+    "FollowUpReminder": "1BC9oGoHqrkQMO6fUIzTT7Hs_X4tRMB4ZOjXUrSUgMwa6NLUJ73GZLT_u",
+    "AttachmentCleaner": ""
   },
   "rootDir": ".",
   "fileExtension": ".gs",
@@ -15,6 +16,8 @@
     "FollowUpReminder/Code.gs",
     "FollowUpReminder/Test.gs",
     "FollowUpReminder/AIProviders.test.gs",
-    "FollowUpReminder/TestCore.gs"
+    "FollowUpReminder/TestCore.gs",
+    "AttachmentCleaner/appsscript.json",
+    "AttachmentCleaner/Code.gs"
   ]
 }

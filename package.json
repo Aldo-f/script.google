@@ -7,8 +7,10 @@
     "validate": "node scripts/validate.js",
     "push:label": "cd LabelReminder && clasp push --force",
     "push:followup": "cd FollowUpReminder && clasp push --force",
+    "push:attachment": "cd AttachmentCleaner && clasp push --force",
     "pull:label": "cd LabelReminder && clasp pull",
     "pull:followup": "cd FollowUpReminder && clasp pull",
+    "pull:attachment": "cd AttachmentCleaner && clasp pull",
     "login": "clasp login",
     "logout": "clasp logout",
     "list": "clasp list"
