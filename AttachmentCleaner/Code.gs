@@ -168,7 +168,9 @@ function getRawMessage(messageId) {
  */
 function stripAttachmentsFromRaw(rawMessage, attachmentNames) {
   // Gmail API returns raw messages as base64url-encoded RFC 2822 message.
-  const decoded = Utilities.base64Decode(rawMessage);
+  // Convert base64url to standard base64
+  const standardBase64 = rawMessage.replace(/-/g, '+').replace(/_/g, '/');
+  const decoded = Utilities.base64Decode(standardBase64);
   const messageString = Utilities.newBlob(decoded).getDataAsString();
 
   // Parse the message: extract headers and body
@@ -319,9 +321,10 @@ function insertRewrittenMessage(rawMessage, threadId, processedLabel) {
  *
  * Uses BATCH_SIZE to limit processing per run and prevent timeouts.
  *
+ * @param {GoogleAppsScript.Gmail.GmailThread[]} [threads] - Optional pre-fetched threads (e.g. from dryRun)
  * @returns {{processed: number, totalAttachments: number, totalBytes: number, errors: string[]}}
  */
-function processAttachments() {
+function processAttachments(threads) {
   Logger.log('=== GmailAttachmentCleaner.start ===');
   const startTime = new Date();
 
@@ -329,7 +332,9 @@ function processAttachments() {
   // No processed label — so adjusting the 10MB limit won't skip messages
   const processedLabel = null;
 
-  const threads = GmailApp.search(CONFIG.SEARCH_QUERY, 0, CONFIG.BATCH_SIZE);
+  if (!threads) {
+    threads = GmailApp.search(CONFIG.SEARCH_QUERY, 0, CONFIG.BATCH_SIZE);
+  }
   // Sort oldest first (by first message date)
   threads.sort((a, b) => {
     const msgA = a.getMessages()[0];
