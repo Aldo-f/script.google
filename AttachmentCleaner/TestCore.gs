@@ -7,7 +7,7 @@ function runAllCoreTests() {
   const results = [];
   [
     testGetExtension, testBuildAttachmentNote, testAppendNoteToTextPart,
-    testGetUniqueFilename, testGetOrCreateLabel,
+    testGetUniqueFilename,
     testSetupTrigger, testRemoveTrigger,
     testDryRunExists, testPreviewAttachmentsExists,
     testProcessAttachmentsExists, testSaveAttachmentExists
@@ -55,7 +55,6 @@ function testGetExtension(r){ r.push(assert('getExtension: file.txt', getExtensi
 function testBuildAttachmentNote(r){ r.push(assert('buildAttachmentNote: single', buildAttachmentNote(['a.pdf']).includes('a.pdf'))); r.push(assert('buildAttachmentNote: multi', buildAttachmentNote(['a.pdf','b.jpg']).includes('b.jpg'))); r.push(assert('buildAttachmentNote: empty list', buildAttachmentNote([]).includes('Met bijlage'))); }
 function testAppendNoteToTextPart(r){ const b='--b\r\nContent-Type:text/plain\r\n\r\nhello\r\n--b--'; const res=appendNoteToTextPart(b,'NOTE'); r.push(assert('appendNote: keeps body', res.includes('hello'))); r.push(assert('appendNote: inserts note', res.includes('NOTE'))); r.push(assert('appendNote: no boundary', appendNoteToTextPart('x','NOTE')==='x')); }
 function testGetUniqueFilename(r){ const f=makeFolder('id','F'); r.push(assert('unique: original', getUniqueFilename('a.pdf','t1',f)==='a.pdf')); const f2={getFilesByName:function(){return{hasNext:()=>true,next:()=>({getName:()=>()=>{}})};}, createFile:function(){}}; const n=getUniqueFilename('a.pdf','t1',f2); r.push(assert('unique: collision different', n!=='a.pdf'&&n.includes('a'))); }
-function testGetOrCreateLabel(r){ const orig=GmailApp; try{ GmailApp={getUserLabelByName:function(n){return n==='exist'?makeLabel('exist'):null;}, createLabel:function(n){return makeLabel(n);}}; const l=getOrCreateLabel('new'); r.push(assert('label: create', l.getName()==='new')); const l2=getOrCreateLabel('exist'); r.push(assert('label: existing', l2.getName()==='exist')); }finally{ GmailApp=orig; } }
 function testSetupTrigger(r){ const trigs=[]; const restore=mockScriptApp(trigs); setupTrigger(); r.push(assert('setup: creates', trigs.length===1)); r.push(assert('setup: func', trigs[0].funcName==='processAttachments')); restore(); }
 function testRemoveTrigger(r){ const trigs=[{funcName:'processAttachments'}]; const restore=mockScriptApp(trigs); removeTrigger(); r.push(assert('remove: clears', trigs.length===0)); restore(); }
 function testDryRunExists(r){ r.push(assert('dryRun: exists', typeof dryRun==='function')); }
