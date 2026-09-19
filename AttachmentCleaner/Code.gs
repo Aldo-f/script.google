@@ -149,9 +149,7 @@ function saveAttachment(attachment, folder, threadId) {
  * @returns {string} Raw RFC 2822 message
  */
 function getRawMessage(messageId) {
-  return Gmail.Users.Messages.get('me', messageId, {
-    format: 'raw',
-  }).raw;
+  return GmailApp.getMessageById(messageId).getRaw();
 }
 
 /**
@@ -162,10 +160,7 @@ function getRawMessage(messageId) {
  * @returns {byte[]} Decoded message bytes
  */
 function getRawMessageBytes(messageId) {
-  const raw = Gmail.Users.Messages.get('me', messageId, {
-    format: 'raw',
-  }).raw;
-  return decodeRawMessage(raw);
+  return decodeRawMessage(getRawMessage(messageId));
 }
 
 /**
