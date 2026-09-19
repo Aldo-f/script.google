@@ -166,11 +166,22 @@ function getRawMessage(messageId) {
  * @param {string[]} attachmentNames - List of attachment filenames removed (for the note)
  * @returns {string} Base64-encoded clean RFC 2822 message
  */
+/**
+ * Decodes a Gmail API raw message (base64url) to bytes.
+ * Gmail API returns base64url-encoded RFC 2822 messages; Utilities.base64Decode
+ * expects standard base64 (with + and /), so we convert first.
+ *
+ * @param {string} rawMessage - base64url-encoded RFC 2822 message
+ * @returns {byte[]} Decoded message bytes
+ */
+function decodeRawMessage(rawMessage) {
+  const standardBase64 = rawMessage.replace(/-/g, '+').replace(/_/g, '/');
+  return Utilities.base64Decode(standardBase64);
+}
+
 function stripAttachmentsFromRaw(rawMessage, attachmentNames) {
   // Gmail API returns raw messages as base64url-encoded RFC 2822 message.
-  // Convert base64url to standard base64
-  const standardBase64 = rawMessage.replace(/-/g, '+').replace(/_/g, '/');
-  const decoded = Utilities.base64Decode(standardBase64);
+  const decoded = decodeRawMessage(rawMessage);
   const messageString = Utilities.newBlob(decoded).getDataAsString();
 
   // Parse the message: extract headers and body
@@ -371,7 +382,7 @@ function processAttachments(threads) {
         // 1. Save original .eml + attachments to email subfolder
         const savedFiles = [];
         const rawMessage = getRawMessage(messageId);
-        const emlBlob = Utilities.newBlob(Utilities.base64Decode(rawMessage)).setName(subfolderName + '.eml');
+        const emlBlob = Utilities.newBlob(decodeRawMessage(rawMessage)).setName(subfolderName + '.eml');
         emailFolder.createFile(emlBlob);
         Logger.log('[DRIVE] Saved .eml: ' + subfolderName + '.eml');
 
