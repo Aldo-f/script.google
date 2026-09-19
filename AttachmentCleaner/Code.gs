@@ -475,7 +475,7 @@ function dryRun() {
   });
   if (threads.length > 1) threads.splice(1);
   Logger.log('[DRY-RUN] Testing oldest of ' + threads.length + ' thread(s)');
-  processAttachments();
+  processAttachments(threads);
   CONFIG.DRY_RUN = false;
 }
 
