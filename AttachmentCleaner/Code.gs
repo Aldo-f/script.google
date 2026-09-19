@@ -155,6 +155,20 @@ function getRawMessage(messageId) {
 }
 
 /**
+ * Fetches the raw RFC 2822 message from Gmail API as bytes.
+ * The `raw` field is base64url-encoded; this decodes it to bytes.
+ *
+ * @param {string} messageId - Gmail message ID
+ * @returns {byte[]} Decoded message bytes
+ */
+function getRawMessageBytes(messageId) {
+  const raw = Gmail.Users.Messages.get('me', messageId, {
+    format: 'raw',
+  }).raw;
+  return decodeRawMessage(raw);
+}
+
+/**
  * Strips all MIME parts that are attachments from a raw RFC 2822 message,
  * preserving the text and HTML content of the message body.
  *
@@ -382,7 +396,7 @@ function processAttachments(threads) {
         // 1. Save original .eml + attachments to email subfolder
         const savedFiles = [];
         const rawMessage = getRawMessage(messageId);
-        const emlBlob = Utilities.newBlob(decodeRawMessage(rawMessage)).setName(subfolderName + '.eml');
+        const emlBlob = Utilities.newBlob(getRawMessageBytes(messageId)).setName(subfolderName + '.eml');
         emailFolder.createFile(emlBlob);
         Logger.log('[DRIVE] Saved .eml: ' + subfolderName + '.eml');
 
