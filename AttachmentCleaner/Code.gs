@@ -146,10 +146,26 @@ function saveAttachment(attachment, folder, threadId) {
  * Returns the raw message as a string, with the original internal date preserved.
  *
  * @param {string} messageId - Gmail message ID
- * @returns {string} Raw RFC 2822 message
+ * @returns {string} Raw RFC 2822 message (base64url-encoded)
  */
 function getRawMessage(messageId) {
-  return GmailApp.getMessageById(messageId).getRaw();
+  const message = Gmail.Users.Messages.get('me', messageId, { format: 'raw' });
+  const raw = message.raw;
+  
+  // Debug: log the type and first 100 chars
+  Logger.log('[DEBUG] raw type: ' + typeof raw);
+  Logger.log('[DEBUG] raw preview: ' + String(raw).substring(0, 100));
+  
+  // Handle different possible formats
+  if (Array.isArray(raw)) {
+    // If it's an array of numbers, convert to string
+    return raw.map(function(c) { return String.fromCharCode(c); }).join('');
+  }
+  if (typeof raw === 'string') {
+    return raw;
+  }
+  // Fallback: convert to string
+  return String(raw);
 }
 
 /**
@@ -180,12 +196,44 @@ function getRawMessageBytes(messageId) {
  * Gmail API returns base64url-encoded RFC 2822 messages; Utilities.base64Decode
  * expects standard base64 (with + and /), so we convert first.
  *
- * @param {string} rawMessage - base64url-encoded RFC 2822 message
+ * @param {string} rawMessage - base64url-encoded RFC 2822 message OR already decoded message
  * @returns {byte[]} Decoded message bytes
  */
 function decodeRawMessage(rawMessage) {
-  const standardBase64 = rawMessage.replace(/-/g, '+').replace(/_/g, '/');
-  return Utilities.base64Decode(standardBase64);
+  const msgStr = String(rawMessage);
+  
+  // Check if already decoded (RFC 2822 headers visible)
+  const decodedHeaders = ['Return-Path:', 'Received:', 'From:', 'To:', 'Subject:', 'Date:', 'Message-ID:'];
+  const trimmed = msgStr.trim();
+  let isDecoded = false;
+  for (const header of decodedHeaders) {
+    if (trimmed.startsWith(header)) {
+      isDecoded = true;
+      break;
+    }
+  }
+  
+  if (isDecoded) {
+    Logger.log('[DECODE] Message appears to be already decoded, converting to bytes directly');
+    return Utilities.newBlob(msgStr).getBytes();
+  }
+  
+  // Check if it's a comma-separated byte array string (e.g., "82,101,116,...")
+  if (msgStr.match(/^\d+(,\d+)*$/)) {
+    Logger.log('[DECODE] Message is comma-separated byte array, parsing...');
+    const bytes = msgStr.split(',').map(function(n) { return parseInt(n, 10); });
+    return bytes;
+  }
+  
+  // Gmail API returns base64url. Remove any whitespace/newlines first.
+  const cleaned = msgStr.trim().replace(/\s+/g, '');
+  const standardBase64 = cleaned.replace(/-/g, '+').replace(/_/g, '/');
+  try {
+    return Utilities.base64Decode(standardBase64);
+  } catch (e) {
+    Logger.log('[DECODE ERROR] Failed to decode raw message (length: ' + standardBase64.length + '). First 50 chars: ' + standardBase64.substring(0, 50));
+    throw e;
+  }
 }
 
 function stripAttachmentsFromRaw(rawMessage, attachmentNames) {
@@ -319,14 +367,81 @@ function appendNoteToTextPart(body, note) {
  */
 function insertRewrittenMessage(rawMessage, threadId, processedLabel) {
   const labelId = processedLabel ? processedLabel.getId() : null;
-  const resource = labelId ? { labelIds: [labelId] } : {};
-  const options = { threadId: threadId, internalDateSource: 'dateHeader' };
-  if (labelId) options.addLabelIds = [labelId];
+  
+  // Convert raw message to base64url
+  const base64url = ensureBase64UrlEncoded(rawMessage);
+  
+  // Build resource — raw must be INSIDE resource
+  const resource = { raw: base64url };
+  if (labelId) {
+    resource.labelIds = [labelId];
+  }
+  
+  // Gmail advanced service insert() is broken for raw messages in Apps Script.
+  // Use UrlFetchApp to call the REST API directly with JSON payload.
+  const url = 'https://gmail.googleapis.com/gmail/v1/users/me/messages';
+  const options = {
+    method: 'post',
+    contentType: 'application/json',
+    headers: {
+      'Authorization': 'Bearer ' + ScriptApp.getOAuthToken()
+    },
+    payload: JSON.stringify(resource),
+    muteHttpExceptions: true
+  };
+  
+  Logger.log('[INSERT] base64url length: %s, calling UrlFetchApp', base64url.length);
+  
+  const response = UrlFetchApp.fetch(url, options);
+  const responseCode = response.getResponseCode();
+  const responseBody = response.getContentText();
+  
+  if (responseCode >= 200 && responseCode < 300) {
+    const result = JSON.parse(responseBody);
+    Logger.log('[REBUILD] Inserted rewritten message into thread %s (new message ID: %s)', threadId, result.id);
+    return result;
+  } else {
+    throw new Error('Gmail API insert failed (HTTP ' + responseCode + '): ' + responseBody);
+  }
+}
 
-  const result = Gmail.Users.Messages.insert(resource, rawMessage, options);
-
-  Logger.log('[REBUILD] Inserted rewritten message into thread ' + threadId + ' (new message ID: ' + result.id + ')');
-  return result;
+/**
+ * Ensures a raw RFC 2822 message is base64url-encoded for Gmail API.
+ * @param {string} rawMessage - RFC 2822 message (decoded, base64url, or byte array string)
+ * @returns {string} base64url-encoded message
+ */
+function ensureBase64UrlEncoded(rawMessage) {
+  const msgStr = String(rawMessage);
+  
+  // Check if already decoded (RFC 2822 headers visible)
+  const decodedHeaders = ['Return-Path:', 'Received:', 'From:', 'To:', 'Subject:', 'Date:', 'Message-ID:'];
+  const trimmed = msgStr.trim();
+  let isDecoded = false;
+  for (const header of decodedHeaders) {
+    if (trimmed.startsWith(header)) {
+      isDecoded = true;
+      break;
+    }
+  }
+  
+  if (isDecoded) {
+    // Encode to base64url
+    const bytes = Utilities.newBlob(msgStr).getBytes();
+    const base64 = Utilities.base64Encode(bytes);
+    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  
+  // Check if it's a comma-separated byte array string
+  if (msgStr.match(/^\d+(,\d+)*$/)) {
+    const bytes = msgStr.split(',').map(function(n) { return parseInt(n, 10); });
+    const blob = Utilities.newBlob(bytes);
+    const base64 = Utilities.base64Encode(blob.getBytes());
+    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  
+  // Assume it's already base64url-encoded, just clean it
+  const cleaned = msgStr.trim().replace(/\s+/g, '');
+  return cleaned;
 }
 
 // ─── MAIN PROCESSING LOGIC ────────────────────────────────────────────────────
@@ -413,7 +528,7 @@ function processAttachments(threads) {
         if (CONFIG.DRY_RUN || !CONFIG.TRASH_MESSAGES) {
           Logger.log('[SKIP] DRY_RUN mode — original message NOT trashed');
         } else {
-          GmailApp.trashMessage(message);
+          message.moveToTrash();
           Logger.log('[TRASH] Original message trashed: ' + messageId);
         }
 
@@ -495,6 +610,26 @@ function dryRun() {
   });
   if (threads.length > 1) threads.splice(1);
   Logger.log('[DRY-RUN] Testing oldest of ' + threads.length + ' thread(s)');
+  processAttachments(threads);
+  CONFIG.DRY_RUN = false;
+}
+
+/**
+ * Runs a REAL clean on exactly ONE email (oldest with >10MB attachment).
+ * Use this to test the full clean+restore cycle.
+ * Then run rollbackOneEmail(0) to restore it.
+ */
+function cleanOneReal() {
+  CONFIG.DRY_RUN = false;
+  Logger.log('[CLEAN-ONE-REAL] Running real clean on ONE email');
+  const threads = GmailApp.search(CONFIG.SEARCH_QUERY, 0, CONFIG.BATCH_SIZE);
+  threads.sort((a, b) => {
+    const msgA = a.getMessages()[0];
+    const msgB = b.getMessages()[0];
+    return msgA.getDate().getTime() - msgB.getDate().getTime();
+  });
+  if (threads.length > 1) threads.splice(1);
+  Logger.log('[CLEAN-ONE-REAL] Processing oldest of ' + threads.length + ' thread(s)');
   processAttachments(threads);
   CONFIG.DRY_RUN = false;
 }

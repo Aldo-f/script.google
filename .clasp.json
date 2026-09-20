@@ -2,7 +2,7 @@
   "projects": {
     "LabelReminder": "1ILoH9E1JGxuG_T-k4fDcJWnvF6Fl8LPBdYD0COerNIk5z6fhknbhYSCw",
     "FollowUpReminder": "1BC9oGoHqrkQMO6fUIzTT7Hs_X4tRMB4ZOjXUrSUgMwa6NLUJ73GZLT_u",
-    "AttachmentCleaner": ""
+    "AttachmentCleaner": "1RPiI7vrTO5UW4y0VOyfqpQEaMnOqdtZCSc3hjcFk_lxWwJeMy_KMwxAP"
   },
   "rootDir": ".",
   "fileExtension": ".gs",
@@ -14,10 +14,24 @@
     "LabelReminder/TestCore.gs",
     "FollowUpReminder/appsscript.json",
     "FollowUpReminder/Code.gs",
+    "FollowUpReminder/src/config.gs",
+    "FollowUpReminder/src/awvQuery.gs",
+    "FollowUpReminder/src/countMap.gs",
+    "FollowUpReminder/src/labelSync.gs",
+    "FollowUpReminder/src/pendingCollection.gs",
+    "FollowUpReminder/src/crossThreadReply.gs",
+    "FollowUpReminder/src/emailDelivery.gs",
+    "FollowUpReminder/src/pdfGeneration.gs",
+    "FollowUpReminder/src/mailParsing.gs",
+    "FollowUpReminder/src/helpers.gs",
+    "FollowUpReminder/src/perfLog.gs",
+    "FollowUpReminder/src/entryPoints.gs",
+    "FollowUpReminder/src/bodyBuilders.gs",
     "FollowUpReminder/Test.gs",
     "FollowUpReminder/AIProviders.test.gs",
     "FollowUpReminder/TestCore.gs",
     "AttachmentCleaner/appsscript.json",
-    "AttachmentCleaner/Code.gs"
+    "AttachmentCleaner/Code.gs",
+    "AttachmentCleaner/Rollback.gs"
   ]
 }
