@@ -25,8 +25,13 @@
  * Configuration block. Edit these values to match your needs.
  */
 const CONFIG = {
+  /** Minimum attachment size in MB to process (used in Gmail search query). */
+  MIN_ATTACHMENT_SIZE_MB: 10,
+
   /** Gmail search query. Matches messages with large attachments that haven't been processed yet. */
-  SEARCH_QUERY: 'has:attachment larger:10M',
+  get SEARCH_QUERY() {
+    return `has:attachment larger:${this.MIN_ATTACHMENT_SIZE_MB}M`;
+  },
 
   /** Name of the Google Drive folder where attachments will be backed up. */
   DRIVE_FOLDER_NAME: 'Gmail Bijlagen Backup',
