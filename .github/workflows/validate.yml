@@ -40,8 +40,8 @@ jobs:
         run: |
           echo "Checking required functions..."
           
-          # LabelReminder required functions
-          for fn in "checkReminders" "autoPauseOnReply" "previewReminders" "dryRun" "sendReminder" "generateReminderText" "getGeminiApiKeys" "callFreeLLM" "callGemini" "callAI" "setup"; do
+          # LabelReminder required functions (entry points — no trailing _)
+          for fn in "checkReminders" "autoPauseOnReply" "previewReminders" "dryRun" "setup"; do
             if ! grep -r "function $fn" LabelReminder/ --include="*.gs"; then
               echo "❌ Missing function: $fn in LabelReminder"
               exit 1
@@ -49,8 +49,8 @@ jobs:
           done
           echo "✅ LabelReminder: all required functions present"
           
-          # FollowUpReminder required functions
-          for fn in "checkDigests" "checkEscalations" "processFollowUps" "collectPending" "sendDigest" "sendEscalation" "rewriteProse" "callFreeLLM" "callGemini" "callAI" "getGeminiApiKeys" "setup" "syncLabels"; do
+          # FollowUpReminder required functions (entry points — no trailing _)
+          for fn in "checkDigests" "checkEscalations" "processFollowUps" "setup" "syncLabels" "previewPending" "dryRun"; do
             if ! grep -r "function $fn" FollowUpReminder/ --include="*.gs"; then
               echo "❌ Missing function: $fn in FollowUpReminder"
               exit 1
