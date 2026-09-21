@@ -9,17 +9,17 @@ function runAllCoreTests() {
   const results = [];
 
   [
-    testGetRemindEveryIntervalLabels,
-    testAutoPauseOnReply,
-    testCleanAIResponse,
-    testGetReminderCountFromThread,
-    testGetToneFromContext,
-    testSendReminder,
-    testCheckReminders,
-    testResumeAll,
-    testExtractAllEmails,
-    testExtractEmail,
-    testExtractName,
+    testGetRemindEveryIntervalLabels_,
+    testAutoPauseOnReply_,
+    testCleanAIResponse_,
+    testGetReminderCountFromThread_,
+    testGetToneFromContext_,
+    testSendReminder_,
+    testCheckReminders_,
+    testResumeAll_,
+    testExtractAllEmails_,
+    testExtractEmail_,
+    testExtractName_,
   ].forEach(suite => {
     try {
       suite(results);
@@ -118,9 +118,9 @@ function mockPropertiesService(properties) {
   return function restore() { PropertiesService = original; };
 }
 
-// ─── PURE: getRemindEveryIntervalLabels ──────────────────────────────────────
+// ─── PURE: getRemindEveryIntervalLabels_ ──────────────────────────────────────
 
-function testGetRemindEveryIntervalLabels(results) {
+function testGetRemindEveryIntervalLabels_(results) {
   const originalGmailApp = GmailApp;
   
   try {
@@ -141,20 +141,20 @@ function testGetRemindEveryIntervalLabels(results) {
       sendEmail: function() {},
     };
     
-    const labels = getRemindEveryIntervalLabels();
-    results.push(assert('getRemindEveryIntervalLabels: returns only valid interval labels', labels.length === 2));
-    results.push(assert('getRemindEveryIntervalLabels: excludes on-hold', labels.every(l => l.getName() !== CONFIG.ON_HOLD)));
-    results.push(assert('getRemindEveryIntervalLabels: excludes invalid', labels.every(l => l.getName() !== 'remind-every/invalid')));
-    results.push(assert('getRemindEveryIntervalLabels: excludes other labels', labels.every(l => l.getName() !== 'Other')));
+    const labels = getRemindEveryIntervalLabels__();
+    results.push(assert('getRemindEveryIntervalLabels_: returns only valid interval labels', labels.length === 2));
+    results.push(assert('getRemindEveryIntervalLabels_: excludes on-hold', labels.every(l => l.getName() !== CONFIG.ON_HOLD)));
+    results.push(assert('getRemindEveryIntervalLabels_: excludes invalid', labels.every(l => l.getName() !== 'remind-every/invalid')));
+    results.push(assert('getRemindEveryIntervalLabels_: excludes other labels', labels.every(l => l.getName() !== 'Other')));
     
   } finally {
     GmailApp = originalGmailApp;
   }
 }
 
-// ─── PURE: autoPauseOnReply ──────────────────────────────────────────────────
+// ─── PURE: autoPauseOnReply_ ──────────────────────────────────────────────────
 
-function testAutoPauseOnReply(results) {
+function testAutoPauseOnReply_(results) {
   const originalGmailApp = GmailApp;
   
   try {
@@ -185,43 +185,43 @@ function testAutoPauseOnReply(results) {
       sendEmail: function() {},
     };
     
-    autoPauseOnReply();
+    autoPauseOnReply__();
     
-    results.push(assert('autoPauseOnReply: pauses thread with reply', addLabelCount === 1));
-    results.push(assert('autoPauseOnReply: does not pause thread without reply', true));
-    results.push(assert('autoPauseOnReply: does not pause thread already on hold', true));
+    results.push(assert('autoPauseOnReply_: pauses thread with reply', addLabelCount === 1));
+    results.push(assert('autoPauseOnReply_: does not pause thread without reply', true));
+    results.push(assert('autoPauseOnReply_: does not pause thread already on hold', true));
     
   } finally {
     GmailApp = originalGmailApp;
   }
 }
 
-// ─── PURE: cleanAIResponse ────────────────────────────────────────────────────
+// ─── PURE: cleanAIResponse_ ────────────────────────────────────────────────────
 
-function testCleanAIResponse(results) {
-  results.push(assert('cleanAIResponse: removes --- separator', 
-    cleanAIResponse('body\n---\nextra') === 'body'));
-  results.push(assert('cleanAIResponse: removes markdown headers',
-    cleanAIResponse('**Header**\nbody') === 'body'));
-  results.push(assert('cleanAIResponse: removes Reasoning lines',
-    cleanAIResponse('Reasoning: something\nbody') === 'body'));
-  results.push(assert('cleanAIResponse: removes Explanation lines',
-    cleanAIResponse('Explanation: something\nbody') === 'body'));
-  results.push(assert('cleanAIResponse: removes Redenering lines',
-    cleanAIResponse('Redenering: something\nbody') === 'body'));
-  results.push(assert('cleanAIResponse: removes Toelichting lines',
-    cleanAIResponse('Toelichting: something\nbody') === 'body'));
-  results.push(assert('cleanAIResponse: collapses multiple newlines',
-    cleanAIResponse('a\n\n\n\nb') === 'a\n\nb'));
-  results.push(assert('cleanAIResponse: empty string',
-    cleanAIResponse('') === ''));
-  results.push(assert('cleanAIResponse: null input',
-    cleanAIResponse(null) === null));
+function testCleanAIResponse_(results) {
+  results.push(assert('cleanAIResponse_: removes --- separator', 
+    cleanAIResponse_('body\n---\nextra') === 'body'));
+  results.push(assert('cleanAIResponse_: removes markdown headers',
+    cleanAIResponse_('**Header**\nbody') === 'body'));
+  results.push(assert('cleanAIResponse_: removes Reasoning lines',
+    cleanAIResponse_('Reasoning: something\nbody') === 'body'));
+  results.push(assert('cleanAIResponse_: removes Explanation lines',
+    cleanAIResponse_('Explanation: something\nbody') === 'body'));
+  results.push(assert('cleanAIResponse_: removes Redenering lines',
+    cleanAIResponse_('Redenering: something\nbody') === 'body'));
+  results.push(assert('cleanAIResponse_: removes Toelichting lines',
+    cleanAIResponse_('Toelichting: something\nbody') === 'body'));
+  results.push(assert('cleanAIResponse_: collapses multiple newlines',
+    cleanAIResponse_('a\n\n\n\nb') === 'a\n\nb'));
+  results.push(assert('cleanAIResponse_: empty string',
+    cleanAIResponse_('') === ''));
+  results.push(assert('cleanAIResponse_: null input',
+    cleanAIResponse_(null) === null));
 }
 
-// ─── PURE: getReminderCountFromThread ────────────────────────────────────────
+// ─── PURE: getReminderCountFromThread_ ────────────────────────────────────────
 
-function testGetReminderCountFromThread(results) {
+function testGetReminderCountFromThread_(results) {
   const my = CONFIG.MY_EMAIL;
   const msg1 = makeMessage(my, new Date(), 'body', 'Re: Test');
   const msg2 = makeMessage(my, new Date(), 'body', 'FW: Test');
@@ -229,72 +229,72 @@ function testGetReminderCountFromThread(results) {
   const msg4 = makeMessage('other@example.com', new Date(), 'body', 'Re: Test');
   
   const thread = makeThread('t1', [msg1, msg2, msg3, msg4]);
-  const count = getReminderCountFromThread(thread);
+  const count = getReminderCountFromThread_(thread);
   
-  results.push(assert('getReminderCountFromThread: counts Re: from me', count === 1));
-  results.push(assert('getReminderCountFromThread: ignores FW: from me', count === 1));
-  results.push(assert('getReminderCountFromThread: ignores non-me senders', count === 1));
-  results.push(assert('getReminderCountFromThread: ignores plain subject', count === 1));
+  results.push(assert('getReminderCountFromThread_: counts Re: from me', count === 1));
+  results.push(assert('getReminderCountFromThread_: ignores FW: from me', count === 1));
+  results.push(assert('getReminderCountFromThread_: ignores non-me senders', count === 1));
+  results.push(assert('getReminderCountFromThread_: ignores plain subject', count === 1));
 }
 
-// ─── PURE: getToneFromContext ─────────────────────────────────────────────────
+// ─── PURE: getToneFromContext_ ─────────────────────────────────────────────────
 
-function testGetToneFromContext(results) {
+function testGetToneFromContext_(results) {
   const now = new Date();
   const recent = new Date(now.getTime() - 5 * 86400000); // 5 days ago
   const old = new Date(now.getTime() - 65 * 86400000); // 65 days ago
   const veryOld = new Date(now.getTime() - 100 * 86400000); // 100 days ago
   
-  results.push(assert('getToneFromContext: 0 reminders, recent → friendly',
-    getToneFromContext(0, recent) === 'kort, vriendelijk en professioneel'));
-  results.push(assert('getToneFromContext: 1 reminder, recent → determined',
-    getToneFromContext(1, recent) === 'zakelijk, vastberaden en wijzend op het veiligheidsrisico'));
-  results.push(assert('getToneFromContext: 3 reminders, recent → urgent',
-    getToneFromContext(3, recent) === 'zeer dringend, vastberaden en bezorgd over de veiligheid'));
-  results.push(assert('getToneFromContext: 0 reminders, >60 days → urgent',
-    getToneFromContext(0, veryOld) === 'zeer dringend, vastberaden en bezorgd over de veiligheid'));
-  results.push(assert('getToneFromContext: 0 reminders, >30 days → determined',
-    getToneFromContext(0, old) === 'zakelijk, vastberaden en wijzend op het veiligheidsrisico'));
+  results.push(assert('getToneFromContext_: 0 reminders, recent → friendly',
+    getToneFromContext_(0, recent) === 'kort, vriendelijk en professioneel'));
+  results.push(assert('getToneFromContext_: 1 reminder, recent → determined',
+    getToneFromContext_(1, recent) === 'zakelijk, vastberaden en wijzend op het veiligheidsrisico'));
+  results.push(assert('getToneFromContext_: 3 reminders, recent → urgent',
+    getToneFromContext_(3, recent) === 'zeer dringend, vastberaden en bezorgd over de veiligheid'));
+  results.push(assert('getToneFromContext_: 0 reminders, >60 days → urgent',
+    getToneFromContext_(0, veryOld) === 'zeer dringend, vastberaden en bezorgd over de veiligheid'));
+  results.push(assert('getToneFromContext_: 0 reminders, >30 days → determined',
+    getToneFromContext_(0, old) === 'zakelijk, vastberaden en wijzend op het veiligheidsrisico'));
 }
 
-// ─── PURE: sendReminder ───────────────────────────────────────────────────────
+// ─── PURE: sendReminder_ ───────────────────────────────────────────────────────
 
-function testSendReminder(results) {
-  results.push(assert('sendReminder: function exists', typeof sendReminder === 'function'));
+function testSendReminder_(results) {
+  results.push(assert('sendReminder_: function exists', typeof sendReminder_ === 'function'));
 }
 
 // ─── PURE: checkReminders ─────────────────────────────────────────────────────
 
-function testCheckReminders(results) {
+function testCheckReminders_(results) {
   results.push(assert('checkReminders: function exists', typeof checkReminders === 'function'));
   
-  // Test that checkReminders calls autoPauseOnReply and getRemindEveryIntervalLabels
-  const originalAutoPause = autoPauseOnReply;
-  const originalGetLabels = getRemindEveryIntervalLabels;
+  // Test that checkReminders calls autoPauseOnReply_ and getRemindEveryIntervalLabels_
+  const originalAutoPause = autoPauseOnReply_;
+  const originalGetLabels = getRemindEveryIntervalLabels_;
   let autoPauseCalled = false;
   let labelsReturned = [];
   
-  autoPauseOnReply = function() { autoPauseCalled = true; };
-  getRemindEveryIntervalLabels = function() { return labelsReturned; };
+  autoPauseOnReply_ = function() { autoPauseCalled = true; };
+  getRemindEveryIntervalLabels_ = function() { return labelsReturned; };
   
   try {
     labelsReturned = [];
     checkReminders();
-    results.push(assert('checkReminders: calls autoPauseOnReply', autoPauseCalled));
+    results.push(assert('checkReminders: calls autoPauseOnReply_', autoPauseCalled));
     results.push(assert('checkReminders: handles no labels', true));
     
     labelsReturned = [makeLabel('remind-every/1week')];
     checkReminders();
     results.push(assert('checkReminders: processes valid labels', true));
   } finally {
-    autoPauseOnReply = originalAutoPause;
-    getRemindEveryIntervalLabels = originalGetLabels;
+    autoPauseOnReply_ = originalAutoPause;
+    getRemindEveryIntervalLabels_ = originalGetLabels;
   }
 }
 
 // ─── PURE: resumeAll ──────────────────────────────────────────────────────────
 
-function testResumeAll(results) {
+function testResumeAll_(results) {
   results.push(assert('resumeAll: function exists', typeof resumeAll === 'function'));
   
   // Test resumeAll with mocked GmailApp
@@ -327,47 +327,47 @@ function testResumeAll(results) {
   }
 }
 
-// ─── PURE: extractAllEmails ────────────────────────────────────────────────────
+// ─── PURE: extractAllEmails_ ────────────────────────────────────────────────────
 
-function testExtractAllEmails(results) {
-  results.push(assert('extractAllEmails: angle brackets', 
-    JSON.stringify(extractAllEmails('Name <email@example.com>')) === JSON.stringify(['email@example.com'])));
-  results.push(assert('extractAllEmails: multiple angle brackets',
-    JSON.stringify(extractAllEmails('Name1 <e1@example.com>, Name2 <e2@example.com>')) === JSON.stringify(['e1@example.com', 'e2@example.com'])));
-  results.push(assert('extractAllEmails: bare emails',
-    JSON.stringify(extractAllEmails('email1@example.com, email2@example.com')) === JSON.stringify(['email1@example.com', 'email2@example.com'])));
-  results.push(assert('extractAllEmails: empty',
-    JSON.stringify(extractAllEmails('')) === JSON.stringify([])));
-  results.push(assert('extractAllEmails: mixed angle and bare',
-    JSON.stringify(extractAllEmails('Name <e1@example.com>, e2@example.com')) === JSON.stringify(['e1@example.com'])));
+function testExtractAllEmails_(results) {
+  results.push(assert('extractAllEmails_: angle brackets', 
+    JSON.stringify(extractAllEmails_('Name <email@example.com>')) === JSON.stringify(['email@example.com'])));
+  results.push(assert('extractAllEmails_: multiple angle brackets',
+    JSON.stringify(extractAllEmails_('Name1 <e1@example.com>, Name2 <e2@example.com>')) === JSON.stringify(['e1@example.com', 'e2@example.com'])));
+  results.push(assert('extractAllEmails_: bare emails',
+    JSON.stringify(extractAllEmails_('email1@example.com, email2@example.com')) === JSON.stringify(['email1@example.com', 'email2@example.com'])));
+  results.push(assert('extractAllEmails_: empty',
+    JSON.stringify(extractAllEmails_('')) === JSON.stringify([])));
+  results.push(assert('extractAllEmails_: mixed angle and bare',
+    JSON.stringify(extractAllEmails_('Name <e1@example.com>, e2@example.com')) === JSON.stringify(['e1@example.com'])));
 }
 
-// ─── PURE: extractEmail ────────────────────────────────────────────────────────
+// ─── PURE: extractEmail_ ────────────────────────────────────────────────────────
 
-function testExtractEmail(results) {
-  results.push(assert('extractEmail: with angle brackets',
-    extractEmail('Name <email@example.com>') === 'email@example.com'));
-  results.push(assert('extractEmail: bare email',
-    extractEmail('email@example.com') === 'email@example.com'));
-  results.push(assert('extractEmail: quoted name',
-    extractEmail('"Name, Surname" <email@example.com>') === 'email@example.com'));
-  results.push(assert('extractEmail: empty string',
-    extractEmail('') === ''));
-  results.push(assert('extractEmail: no angle brackets',
-    extractEmail('just text') === 'just text'));
+function testExtractEmail_(results) {
+  results.push(assert('extractEmail_: with angle brackets',
+    extractEmail_('Name <email@example.com>') === 'email@example.com'));
+  results.push(assert('extractEmail_: bare email',
+    extractEmail_('email@example.com') === 'email@example.com'));
+  results.push(assert('extractEmail_: quoted name',
+    extractEmail_('"Name, Surname" <email@example.com>') === 'email@example.com'));
+  results.push(assert('extractEmail_: empty string',
+    extractEmail_('') === ''));
+  results.push(assert('extractEmail_: no angle brackets',
+    extractEmail_('just text') === 'just text'));
 }
 
-// ─── PURE: extractName ─────────────────────────────────────────────────────────
+// ─── PURE: extractName_ ─────────────────────────────────────────────────────────
 
-function testExtractName(results) {
-  results.push(assert('extractName: with angle brackets',
-    extractName('Name <email@example.com>') === 'Name'));
-  results.push(assert('extractName: quoted name with comma',
-    extractName('"Name, Surname" <email@example.com>') === 'Name, Surname'));
-  results.push(assert('extractName: bare email → null',
-    extractName('email@example.com') === null));
-  results.push(assert('extractName: empty → null',
-    extractName('') === null));
-  results.push(assert('extractName: no angle brackets → null',
-    extractName('plain text') === null));
+function testExtractName_(results) {
+  results.push(assert('extractName_: with angle brackets',
+    extractName_('Name <email@example.com>') === 'Name'));
+  results.push(assert('extractName_: quoted name with comma',
+    extractName_('"Name, Surname" <email@example.com>') === 'Name, Surname'));
+  results.push(assert('extractName_: bare email → null',
+    extractName_('email@example.com') === null));
+  results.push(assert('extractName_: empty → null',
+    extractName_('') === null));
+  results.push(assert('extractName_: no angle brackets → null',
+    extractName_('plain text') === null));
 }

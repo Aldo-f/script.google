@@ -5,7 +5,10 @@
     "appsscript.json",
     "Code.gs",
     "Test.gs",
-    "TestIrritation.gs"
+    "TestCore.gs",
+    "TestIrritation.gs",
+    "TestIrritationCombined.gs",
+    "TestIrritationCount.gs"
   ],
   "projectId": "lexical-helix-344"
 }

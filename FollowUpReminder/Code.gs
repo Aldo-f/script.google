@@ -66,7 +66,7 @@ const CONFIG = {
  * i.e. emails sent by AWV to the watchlist address with Aldo in CC.
  * Excludes digest reminder emails (also sent to watchlist with Aldo in CC).
  */
-function awvDossierQuery(address, extra) {
+function awvDossierQuery_(address, extra) {
   const base = `from:${CONFIG.AWV_SENDER} to:${address} cc:${CONFIG.MY_EMAIL}`;
   return extra ? `${base} ${extra}` : base;
 }
@@ -89,15 +89,15 @@ function checkEscalations() {
 
 function processFollowUps({ doDigest, doEscalate }) {
   perfLog('processFollowUps.start');
-  const escalatedLabel = getOrCreateLabel(CONFIG.LABELS.ESCALATED);
-  const escalatedIds   = getLabeledThreadIds(escalatedLabel);
-  const closedIds      = getLabeledThreadIds(getOrCreateLabel(CONFIG.LABELS.CLOSED));
-  const cutoff         = daysAgo(CONFIG.WAIT_DAYS);
+  const escalatedLabel = getOrCreateLabel_(CONFIG.LABELS.ESCALATED);
+  const escalatedIds   = getLabeledThreadIds_(escalatedLabel);
+  const closedIds      = getLabeledThreadIds_(getOrCreateLabel_(CONFIG.LABELS.CLOSED));
+  const cutoff         = daysAgo_(CONFIG.WAIT_DAYS);
 
   CONFIG.WATCHLIST.forEach(entry => {
     perfLog(`processFollowUps.entry.${entry.address}.start`);
-    const countMap = buildReminderCountMap(entry.address);
-    const pending  = collectPending(entry.address, cutoff, escalatedIds, closedIds, countMap);
+    const countMap = buildReminderCountMap_(entry.address);
+    const pending  = collectPending_(entry.address, cutoff, escalatedIds, closedIds, countMap);
 
     if (pending.length === 0) {
       log(`[OK] No pending dossiers for ${entry.address}`);
@@ -111,11 +111,11 @@ function processFollowUps({ doDigest, doEscalate }) {
     );
 
     if (doEscalate && toEscalate.length > 0) {
-      sendEscalation(entry, toEscalate, escalatedLabel);
+      sendEscalation_(entry, toEscalate, escalatedLabel);
     }
 
     if (doDigest && pending.length > 0) {
-      sendDigest(entry, pending);
+      sendDigest_(entry, pending);
     }
     perfLog(`processFollowUps.entry.${entry.address}.end`);
   });
@@ -124,26 +124,26 @@ function processFollowUps({ doDigest, doEscalate }) {
 
 function syncLabels() {
   perfLog('syncLabels.start');
-  const closedLabel    = getOrCreateLabel(CONFIG.LABELS.CLOSED);
-  const escalatedLabel = getOrCreateLabel(CONFIG.LABELS.ESCALATED);
+  const closedLabel    = getOrCreateLabel_(CONFIG.LABELS.CLOSED);
+  const escalatedLabel = getOrCreateLabel_(CONFIG.LABELS.ESCALATED);
 
   CONFIG.WATCHLIST.forEach(entry => {
     perfLog(`syncLabels.entry.${entry.address}.start`);
-    const countMap = buildReminderCountMap(entry.address);
+    const countMap = buildReminderCountMap_(entry.address);
     // Limit search to last 180 days to avoid scanning years of closed threads
-    const lookback  = formatDate(daysAgo(180));
-    const threads   = GmailApp.search(awvDossierQuery(entry.address, `after:${lookback}`));
+    const lookback  = formatDate_(daysAgo_(180));
+    const threads   = GmailApp.search(awvDossierQuery_(entry.address, `after:${lookback}`));
 
     threads.forEach(thread => {
       if (thread.getLabels().some(l => l.getName() === closedLabel.getName())) return;
 
-      const subject    = subjectOf(thread);
-      const ticketCode = extractTicketCode(subject);
+      const subject    = subjectOf_(thread);
+      const ticketCode = extractTicketCode_(subject);
       if (!ticketCode || !countMap.has(ticketCode)) return;
 
       const count = countMap.get(ticketCode) || 0;
 
-      applyCorrectLabel(thread, count, escalatedLabel);
+      applyCorrectLabel_(thread, count, escalatedLabel);
     });
     perfLog(`syncLabels.entry.${entry.address}.end`);
   });
@@ -152,8 +152,8 @@ function syncLabels() {
   perfLog('syncLabels.end');
 }
 
-function applyCorrectLabel(thread, count, escalatedLabel) {
-  const closedLabel = getOrCreateLabel(CONFIG.LABELS.CLOSED);
+function applyCorrectLabel_(thread, count, escalatedLabel) {
+  const closedLabel = getOrCreateLabel_(CONFIG.LABELS.CLOSED);
   const labels      = thread.getLabels();
 
   const isEscalated = labels.some(l => l.getName() === escalatedLabel.getName());
@@ -172,7 +172,7 @@ function applyCorrectLabel(thread, count, escalatedLabel) {
 
   if (isEscalated || isClosed || count === 0) return;
 
-  const label = getOrCreateLabel(`${CONFIG.LABELS.PREFIX}/${count}`);
+  const label = getOrCreateLabel_(`${CONFIG.LABELS.PREFIX}/${count}`);
   thread.addLabel(label);
 }
 
@@ -187,15 +187,15 @@ function applyCorrectLabel(thread, count, escalatedLabel) {
  */
 const countMapCache = {};
 
-function buildReminderCountMap(address) {
+function buildReminderCountMap_(address) {
   if (countMapCache[address]) {
-    log(`[PERF] buildReminderCountMap.${address} — cached hit`);
+    log(`[PERF] buildReminderCountMap_.${address} - cached hit`);
     return countMapCache[address];
   }
-  perfLog(`buildReminderCountMap.${address}.start`);
+  perfLog(`buildReminderCountMap_.${address}.start`);
 
   // Limit to last 180 days to avoid scanning years of stale digest emails
-  const after   = formatDate(daysAgo(180));
+  const after   = formatDate_(daysAgo_(180));
   const query   = `from:${CONFIG.MY_EMAIL} to:${address} subject:"${CONFIG.DIGEST_SUBJECT_PREFIX}" after:${after}`;
   const threads = GmailApp.search(query);
   const map     = new Map();
@@ -212,7 +212,7 @@ function buildReminderCountMap(address) {
   });
 
   log(`[COUNT MAP] Built for ${address}: ${map.size} ticket(s) tracked`);
-  perfLog(`buildReminderCountMap.${address}.end`);
+  perfLog(`buildReminderCountMap_.${address}.end`);
 
   countMapCache[address] = map;
   return map;
@@ -220,13 +220,13 @@ function buildReminderCountMap(address) {
 
 // ─── COLLECT PENDING ─────────────────────────────────────────────────────────
 
-function collectPending(address, cutoff, escalatedIds, closedIds, countMap) {
-  perfLog(`collectPending.${address}.start`);
+function collectPending_(address, cutoff, escalatedIds, closedIds, countMap) {
+  perfLog(`collectPending_.${address}.start`);
   // Limit search to last 90 days to avoid scanning years of old threads
   // that are almost certainly already closed/replied.
   const lookback = new Date(cutoff);
   lookback.setDate(lookback.getDate() - 90);
-  const query   = awvDossierQuery(address, `before:${formatDate(cutoff)} after:${formatDate(lookback)}`);
+  const query   = awvDossierQuery_(address, `before:${formatDate_(cutoff)} after:${formatDate_(lookback)}`);
   const threads = GmailApp.search(query);
 
   // First pass: collect candidates + gather ticket codes for batched cross-thread check
@@ -236,10 +236,10 @@ function collectPending(address, cutoff, escalatedIds, closedIds, countMap) {
   threads.forEach(thread => {
     if (closedIds.has(thread.getId()))    return;
 
-    const subject    = subjectOf(thread);
-    const ticketCode = extractTicketCode(subject);
+    const subject    = subjectOf_(thread);
+    const ticketCode = extractTicketCode_(subject);
 
-    if (hasReply(thread, address)) return;
+    if (hasReply_(thread, address)) return;
 
     if (!ticketCode) {
       // No ticket code — include anyway (edge case)
@@ -252,8 +252,8 @@ function collectPending(address, cutoff, escalatedIds, closedIds, countMap) {
   });
 
   // Batch cross-thread check: ONE Gmail search for all ticket codes
-  const crossRepliedCodes = batchCheckCrossThreadReply([...ticketCodes], address);
-  perfLog(`collectPending.${address}.batchCrossCheck`);
+  const crossRepliedCodes = batchCheckCrossThreadReply_([...ticketCodes], address);
+  perfLog(`collectPending_.${address}.batchCrossCheck`);
 
   // Second pass: build pending list, skip cross-replied
   const result = [];
@@ -269,20 +269,20 @@ function collectPending(address, cutoff, escalatedIds, closedIds, countMap) {
       ticketCode,
       reminderCount,
       sentDate: original.getDate(),
-      context:  extractMailContext(original.getPlainBody()),
+      context:  extractMailContext_(original.getPlainBody()),
     });
   });
 
-  perfLog(`collectPending.${address}.end — ${result.length} pending from ${threads.length} threads`);
+  perfLog(`collectPending_.${address}.end — ${result.length} pending from ${threads.length} threads`);
   return result;
 }
 
 /**
- * Batch version of hasCrossThreadReply — searches Gmail with batched OR queries
+ * Batch version of hasCrossThreadReply_ — searches Gmail with batched OR queries
  * to stay within the ~2048-char query limit (~50 codes per batch).
  * Returns a Set of ticket codes that have cross-thread replies from the watched address.
  */
-function batchCheckCrossThreadReply(ticketCodes, watchedAddress) {
+function batchCheckCrossThreadReply_(ticketCodes, watchedAddress) {
   if (ticketCodes.length === 0) return new Set();
 
   const BATCH_SIZE = 50;
@@ -296,7 +296,7 @@ function batchCheckCrossThreadReply(ticketCodes, watchedAddress) {
     const threads = GmailApp.search(query);
 
     threads.forEach(thread => {
-      const ticketCode = extractTicketCodeForCrossCheck(thread, watchedLower);
+      const ticketCode = extractTicketCode_ForCrossCheck_(thread, watchedLower);
       if (ticketCode) repliedCodes.add(ticketCode);
     });
   }
@@ -310,15 +310,15 @@ function batchCheckCrossThreadReply(ticketCodes, watchedAddress) {
  * Returns the ticket code (string) or null.
  * This is a pure function (no GmailApp calls) — testable with mocks.
  */
-function extractTicketCodeForCrossCheck(thread, watchedLower) {
-  const subject = subjectOf(thread);
-  const code    = extractTicketCode(subject);
+function extractTicketCode_ForCrossCheck_(thread, watchedLower) {
+  const subject = subjectOf_(thread);
+  const code    = extractTicketCode_(subject);
   if (!code) return null;
 
-  const hasReplyFromWatched = thread.getMessages().some(msg =>
+  const hasReply_FromWatched = thread.getMessages().some(msg =>
     msg.getFrom().toLowerCase().includes(watchedLower)
   );
-  return hasReplyFromWatched ? code : null;
+  return hasReply_FromWatched ? code : null;
 }
 
 // ─── DELIVERY ─────────────────────────────────────────────────────────────────
@@ -327,7 +327,7 @@ function extractTicketCodeForCrossCheck(thread, watchedLower) {
  * Single delivery handler. Respects DRY_RUN and CREATE_DRAFTS.
  * onSent is called only after an actual send (not draft/dry-run).
  */
-function deliverEmail({ to, subject, body, cc, attachments }, onSent) {
+function deliverEmail_({ to, subject, body, cc, attachments }, onSent) {
   if (CONFIG.DRY_RUN) {
     log(`[DRY-RUN] → ${to} | ${subject}`);
     log(`[DRY-RUN] Body:\n${body}`);
@@ -347,23 +347,23 @@ function deliverEmail({ to, subject, body, cc, attachments }, onSent) {
   }
 }
 
-function sendDigest(entry, pending) {
-  perfLog(`sendDigest.${entry.address}.start — ${pending.length} items`);
-  const body = buildFallbackDigest(pending);
-  const pdf  = buildCombinedPdf(pending);
+function sendDigest_(entry, pending) {
+  perfLog(`sendDigest_.${entry.address}.start — ${pending.length} items`);
+  const body = buildFallbackDigest_(pending);
+  const pdf  = buildCombinedPdf_(pending);
   const cc = [CONFIG.MY_EMAIL, ...(entry.digestCc || [])].join(',');
-  deliverEmail({
+  deliverEmail_({
     to:          entry.address,
-    subject:     `${CONFIG.DIGEST_SUBJECT_PREFIX} - ${formatDateDisplay(new Date())}`,
+    subject:     `${CONFIG.DIGEST_SUBJECT_PREFIX} - ${formatDate_Display(new Date())}`,
     body,
     cc:          cc,
     attachments: [pdf],
   });
-  perfLog(`sendDigest.${entry.address}.end`);
+  perfLog(`sendDigest_.${entry.address}.end`);
 }
 
-function sendEscalation(entry, pending, escalatedLabel) {
-  perfLog(`sendEscalation.${entry.address}.start — ${pending.length} items`);
+function sendEscalation_(entry, pending, escalatedLabel) {
+  perfLog(`sendEscalation_.${entry.address}.start — ${pending.length} items`);
   const items = pending.map(({ ticketCode, sentDate, context, reminderCount }, i) => {
     const ref      = ticketCode || '-';
     const date     = sentDate.toLocaleDateString('nl-BE');
@@ -371,8 +371,8 @@ function sendEscalation(entry, pending, escalatedLabel) {
     return `  ${i + 1}. Ref. ${ref} - ${date} - ${location} (${reminderCount}x herinnerd)`;
   }).join('\n');
   const body = `Geachte mevrouw Gevers,\n\nVia AWV werden de volgende meldingen doorgestuurd naar ${entry.address}.\nNa ${CONFIG.ESCALATE_AFTER} herhaalde verzoeken om opvolging bleef een reactie uit.\n\nIk escaleer deze dossiers naar u als diensthoofd en stel AWV in kennis zodat zij op de hoogte zijn van het gebrek aan opvolging.\n\nOpenstaande dossiers (bijgevoegde PDF):\n${items}\n\nMag ik u verzoeken deze dossiers dringend op te nemen en mij te informeren over de verdere aanpak?\n\nMet vriendelijke groeten,\nAldo Fieuw`;
-  const pdf  = buildCombinedPdf(pending);
-  deliverEmail({
+  const pdf  = buildCombinedPdf_(pending);
+  deliverEmail_({
     to:          entry.escalateTo,
     subject:     entry.escalateSubject,
     body,
@@ -381,7 +381,7 @@ function sendEscalation(entry, pending, escalatedLabel) {
   }, () => {
     pending.forEach(({ thread }) => thread.addLabel(escalatedLabel));
   });
-  perfLog(`sendEscalation.${entry.address}.end`);
+  perfLog(`sendEscalation_.${entry.address}.end`);
 }
 
 // ─── AI PROSE REWRITE — WATERFALL (Gemini → FreeLLMAPI) ──────────────────────────
@@ -393,7 +393,7 @@ function sendEscalation(entry, pending, escalatedLabel) {
  * strip markdown code fences from output, fallback to original if AI
  * output is suspiciously long (>3x input length).
  */
-function rewriteProse(prose) {
+function rewriteProse_(prose) {
   const prompt = [
     'Je bent Aldo, een burger die een beleefde herinnering stuurt.',
     'Verzin GEEN organisatienamen — gebruik altijd "AWV" (Agentschap Wegen en Verkeer).',
@@ -412,12 +412,12 @@ function rewriteProse(prose) {
     const cleaned = raw.replace(/^```[\s\S]*?\n/, '').replace(/\n```$/, '').trim();
     // Fallback if output is suspiciously long (>3x input)
     if (cleaned.length > prose.length * 3) {
-      log(`[WARN] rewriteProse: output too long (${cleaned.length} vs ${prose.length}), using original`);
+      log(`[WARN] rewriteProse_: output too long (${cleaned.length} vs ${prose.length}), using original`);
       return prose;
     }
     return cleaned;
   } catch (err) {
-    log(`[WARN] rewriteProse failed (${err.message}), using original prose`);
+    log(`[WARN] rewriteProse_ failed (${err.message}), using original prose`);
     return prose;
   }
 }
@@ -431,9 +431,9 @@ function rewriteProse(prose) {
  * @param {string} outroProse  - Closing paragraph(s) to rewrite
  * @returns {string} Full email body
  */
-function composeBody(introProse, listBlock, outroProse) {
-  const rewrittenIntro = rewriteProse(introProse);
-  const rewrittenOutro = rewriteProse(outroProse);
+function composeBody_(introProse, listBlock, outroProse) {
+  const rewrittenIntro = rewriteProse_(introProse);
+  const rewrittenOutro = rewriteProse_(outroProse);
   return [rewrittenIntro, '', listBlock, '', rewrittenOutro].join('\n');
 }
 
@@ -453,9 +453,9 @@ function composeBody(introProse, listBlock, outroProse) {
  * We slice from 'Locatiegegevens:' to keep location + complaint,
  * dropping both the AWV boilerplate and Aldo's personal contact block.
  */
-function buildCombinedPdf(pending) {
-  perfLog('buildCombinedPdf.start');
-  const dateStr = formatDate(new Date());
+function buildCombinedPdf_(pending) {
+  perfLog('buildCombinedPdf_.start');
+  const dateStr = formatDate_(new Date());
 
   // Build HTML directly instead of creating a Google Doc — much faster
   const pageParts = pending.map(({ ticketCode, sentDate, subject, thread }, i) => {
@@ -466,13 +466,13 @@ function buildCombinedPdf(pending) {
 
     return `
 <div style="page-break-before:${i > 0 ? 'always' : 'auto'}; font-family:sans-serif;margin:0;padding:0;">
-  <h1>Dossier: ${escapeHtml(ref)}</h1>
+  <h1>Dossier: ${escapeHtml_(ref)}</h1>
   <p><strong>Doorgestuurd op:</strong> ${sentDate.toLocaleDateString('nl-BE')}</p>
-  <p><strong>Onderwerp:</strong> ${escapeHtml(subject)}</p>
+  <p><strong>Onderwerp:</strong> ${escapeHtml_(subject)}</p>
   <p><strong>Gegenereerd op:</strong> ${new Date().toLocaleDateString('nl-BE')}</p>
   <hr>
   <h2>Originele melding</h2>
-  <pre style="white-space:pre-wrap;font-family:sans-serif;">${escapeHtml(cleanBody)}</pre>
+  <pre style="white-space:pre-wrap;font-family:sans-serif;">${escapeHtml_(cleanBody)}</pre>
 </div>`;
   });
 
@@ -489,12 +489,12 @@ function buildCombinedPdf(pending) {
   ).getAs('application/pdf')
    .setName(`Meldingen_${dateStr}.pdf`);
 
-  perfLog('buildCombinedPdf.end');
+  perfLog('buildCombinedPdf_.end');
   return html;
 }
 
 /** Minimal HTML-escape to prevent XSS in PDF rendering. */
-function escapeHtml(str) {
+function escapeHtml_(str) {
   return String(str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -507,7 +507,7 @@ function escapeHtml(str) {
 /**
  * Groups pending dossiers by date. Pure function.
  */
-function buildGroupedOverview(pending) {
+function buildGroupedOverview_(pending) {
   const now    = new Date();
   const groups = {};
 
@@ -535,14 +535,14 @@ function buildGroupedOverview(pending) {
     .join('\n');
 }
 
-function buildFallbackDigest(pending) {
+function buildFallbackDigest_(pending) {
   return [
     'Geachte,',
     '',
     'Hierbij een overzicht van de meldingen die ik via AWV aan uw dienst doorzond',
     'en waarop ik tot op heden nog geen reactie of statusupdate ontving:',
     '',
-    buildGroupedOverview(pending),
+    buildGroupedOverview_(pending),
     '',
     'Mag ik u verzoeken de openstaande dossiers op te volgen',
     'en mij per dossier op de hoogte te stellen van de huidige status?',
@@ -552,7 +552,7 @@ function buildFallbackDigest(pending) {
   ].join('\n');
 }
 
-function buildEscalationBody(entry, pending) {
+function buildEscalationBody_(entry, pending) {
   const items = pending.map(({ ticketCode, sentDate, context, reminderCount }, i) => {
     const ref      = ticketCode || '-';
     const date     = sentDate.toLocaleDateString('nl-BE');
@@ -582,15 +582,15 @@ function buildEscalationBody(entry, pending) {
 
 // ─── MAIL PARSING ────────────────────────────────────────────────────────────
 
-function extractMailContext(body) {
+function extractMailContext_(body) {
   return {
-    location:   extractLocation(body),
-    complaint:  extractComplaint(body),
-    ticketCode: extractTicketCodeFromBody(body),
+    location:   extractLocation_(body),
+    complaint:  extractComplaint_(body),
+    ticketCode: extractTicketCode_FromBody_(body),
   };
 }
 
-function extractLocation(body) {
+function extractLocation_(body) {
   const match = body.match(/Adres:\s*(.+)/);
   if (!match) return null;
   const value = match[1].trim();
@@ -601,7 +601,7 @@ function extractLocation(body) {
   return value;
 }
 
-function extractComplaint(body) {
+function extractComplaint_(body) {
   const blocks = body.split('Inkomend bericht van');
   if (blocks.length < 2) return null;
   const lastBlock = blocks[blocks.length - 1];
@@ -610,14 +610,14 @@ function extractComplaint(body) {
   return cutAt > -1 ? content.slice(0, cutAt).trim() : content.trim();
 }
 
-function extractTicketCodeFromBody(body) {
+function extractTicketCode_FromBody_(body) {
   const match = body.match(/[A-Z]{2,}-\d{4}-\d{4,}/);
   return match ? match[0] : null;
 }
 
 // ─── REPLY DETECTION ─────────────────────────────────────────────────────────
 
-function hasReply(thread, watchedAddress) {
+function hasReply_(thread, watchedAddress) {
   return thread.getMessages().slice(1).some(msg => {
     const from = msg.getFrom().toLowerCase();
     return !from.includes(CONFIG.MY_EMAIL.toLowerCase()) &&
@@ -625,7 +625,7 @@ function hasReply(thread, watchedAddress) {
   });
 }
 
-function hasCrossThreadReply(ticketCode, originalThreadId, watchedAddress) {
+function hasCrossThreadReply_(ticketCode, originalThreadId, watchedAddress) {
   return GmailApp.search(`"${ticketCode}"`)
     .filter(thread => thread.getId() !== originalThreadId)
     .some(thread =>
@@ -638,29 +638,29 @@ function hasCrossThreadReply(ticketCode, originalThreadId, watchedAddress) {
 // ─── PREVIEW ─────────────────────────────────────────────────────────────────
 
 function previewPending() {
-  const escalatedLabel = getOrCreateLabel(CONFIG.LABELS.ESCALATED);
-  const escalatedIds   = getLabeledThreadIds(escalatedLabel);
-  const cutoff         = daysAgo(CONFIG.WAIT_DAYS);
+  const escalatedLabel = getOrCreateLabel_(CONFIG.LABELS.ESCALATED);
+  const escalatedIds   = getLabeledThreadIds_(escalatedLabel);
+  const cutoff         = daysAgo_(CONFIG.WAIT_DAYS);
   const now            = new Date();
 
   CONFIG.WATCHLIST.forEach(({ address }) => {
-    const countMap = buildReminderCountMap(address);
-    const threads  = GmailApp.search(awvDossierQuery(address));
+    const countMap = buildReminderCountMap_(address);
+    const threads  = GmailApp.search(awvDossierQuery_(address));
     const rows     = { PENDING: [], DUE: [], ESCALATE: [], REPLIED: [] };
 
     threads.forEach(thread => {
-      const subject  = subjectOf(thread);
+      const subject  = subjectOf_(thread);
       const sentDate = thread.getMessages()[0].getDate();
       const daysOld  = Math.floor((now - sentDate) / 86400000);
-      const ticket   = extractTicketCode(subject) || '—';
+      const ticket   = extractTicketCode_(subject) || '—';
       const count    = countMap.get(ticket) || 0;
       const label    = `${ticket} | ${daysOld}d | reminded:${count}x | ${subject}`;
 
       if (escalatedIds.has(thread.getId())) {
         rows.ESCALATE.push(label);
-      } else if (hasReply(thread, address)) {
+      } else if (hasReply_(thread, address)) {
         rows.REPLIED.push(label);
-      } else if (ticket !== '—' && hasCrossThreadReply(ticket, thread.getId(), address)) {
+      } else if (ticket !== '—' && hasCrossThreadReply_(ticket, thread.getId(), address)) {
         rows.REPLIED.push(`${label} (cross-thread)`);
       } else if (sentDate < cutoff) {
         rows[count >= CONFIG.ESCALATE_AFTER ? 'ESCALATE' : 'DUE'].push(label);
@@ -683,14 +683,14 @@ function previewPending() {
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
-function extractTicketCode(subject) {
+function extractTicketCode_(subject) {
   const matches = subject.match(CONFIG.TICKET_REGEX);
   return matches ? matches[0] : null;
 }
 
-function subjectOf(thread)      { return thread.getFirstMessageSubject(); }
-function log(msg)               { Logger.log(msg); }
-function getOrCreateLabel(name) { return GmailApp.getUserLabelByName(name) ?? GmailApp.createLabel(name); }
+function subjectOf_(thread)      { return thread.getFirstMessageSubject(); }
+function log(msg) { Logger.log(msg); }
+function getOrCreateLabel_(name) { return GmailApp.getUserLabelByName(name) ?? GmailApp.createLabel(name); }
 
 // ─── PERFORMANCE LOGGING ─────────────────────────────────────────────────────
 
@@ -714,32 +714,32 @@ const perfLog = (() => {
   return fn;
 })();
 
-function getLabeledThreadIds(label) {
+function getLabeledThreadIds_(label) {
   const ids = new Set();
   label.getThreads().forEach(t => ids.add(t.getId()));
   return ids;
 }
 
-function daysAgo(days) {
+function daysAgo_(days) {
   const d = new Date();
   d.setDate(d.getDate() - days);
   return d;
 }
 
-function formatDate(date) {
+function formatDate_(date) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}/${m}/${d}`;
 }
 
-function formatDateDisplay(date) {
+function formatDate_Display_(date) {
   return date.toLocaleDateString('nl-BE', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 // ─── TEST HELPERS (used by FollowUpReminder.test.gs) ─────────────────────────
 
-function buildReminderPrompt(context, subject, toAddress, sentDate) {
+function buildReminderPrompt_(context, subject, toAddress, sentDate) {
   const lines = [
     'Schrijf een korte, professionele herinneringsmail in het Nederlands.',
     'De ontvanger heeft een doorgestuurde melding niet beantwoord.',
@@ -757,7 +757,7 @@ function buildReminderPrompt(context, subject, toAddress, sentDate) {
   return lines.join('\n');
 }
 
-function buildFallbackReminder(context, subject, sentDate) {
+function buildFallbackReminder_(context, subject, sentDate) {
   const ref      = context.ticketCode ? ` (ref. ${context.ticketCode})` : '';
   const location = context.location   ? `\nLocatie: ${context.location}` : '';
   return [
@@ -781,13 +781,13 @@ function buildFallbackReminder(context, subject, sentDate) {
  * Always creates a draft regardless of DRY_RUN/CREATE_DRAFTS settings.
  * Run once to verify PDF generation, then delete the draft.
  */
-function testEscalationDraft() {
+function testEscalationDraft_() {
   const ESCALATION_TEST_COUNT = 3;
   const entry        = CONFIG.WATCHLIST[0];
-  const countMap     = buildReminderCountMap(entry.address);
-  const escalatedIds = getLabeledThreadIds(getOrCreateLabel(CONFIG.LABELS.ESCALATED));
-  const closedIds    = getLabeledThreadIds(getOrCreateLabel(CONFIG.LABELS.CLOSED));
-  const pending      = collectPending(entry.address, daysAgo(CONFIG.WAIT_DAYS), escalatedIds, closedIds, countMap)
+  const countMap     = buildReminderCountMap_(entry.address);
+  const escalatedIds = getLabeledThreadIds_(getOrCreateLabel_(CONFIG.LABELS.ESCALATED));
+  const closedIds    = getLabeledThreadIds_(getOrCreateLabel_(CONFIG.LABELS.CLOSED));
+  const pending      = collectPending_(entry.address, daysAgo_(CONFIG.WAIT_DAYS), escalatedIds, closedIds, countMap)
                          .slice(0, ESCALATION_TEST_COUNT);
 
   if (pending.length === 0) {
@@ -803,8 +803,8 @@ function testEscalationDraft() {
     const location = context.location || '(locatie onbekend)';
     return `  ${i + 1}. Ref. ${ref} - ${date} - ${location} (${reminderCount}x herinnerd)`;
   }).join('\n');
-  const pdf    = buildCombinedPdf(pending);
-  const body   = composeBody(
+  const pdf    = buildCombinedPdf_(pending);
+  const body   = composeBody_(
     `Geachte mevrouw Gevers,\n\nVia AWV werden de volgende meldingen doorgestuurd naar ${entry.address}.\nNa ${CONFIG.ESCALATE_AFTER} herhaalde verzoeken om opvolging bleef een reactie uit.\n\nIk escaleer deze dossiers naar u als diensthoofd en stel AWV in kennis zodat zij op de hoogte zijn van het gebrek aan opvolging.\n\nOpenstaande dossiers (bijgevoegde PDF):`,
     items,
     `Mag ik u verzoeken deze dossiers dringend op te nemen en mij te informeren over de verdere aanpak?\n\nMet vriendelijke groeten,\nAldo Fieuw`
@@ -821,8 +821,8 @@ function testEscalationDraft() {
 // ─── SETUP ───────────────────────────────────────────────────────────────────
 
 function setup() {
-  getOrCreateLabel(CONFIG.LABELS.ESCALATED);
-  [1, 2, 3, 4].forEach(n => getOrCreateLabel(`${CONFIG.LABELS.PREFIX}/${n}`));
+  getOrCreateLabel_(CONFIG.LABELS.ESCALATED);
+  [1, 2, 3, 4].forEach(n => getOrCreateLabel_(`${CONFIG.LABELS.PREFIX}/${n}`));
 
   ScriptApp.getProjectTriggers()
     .forEach(t => ScriptApp.deleteTrigger(t));
@@ -902,17 +902,17 @@ function dryRunWithMax(maxReminders) {
 
   let processed = 0;
   CONFIG.WATCHLIST.forEach(entry => {
-    const countMap = buildReminderCountMap(entry.address);
-    let pending    = collectPending(entry.address, daysAgo(CONFIG.WAIT_DAYS),
-      getLabeledThreadIds(getOrCreateLabel(CONFIG.LABELS.ESCALATED)),
-      getLabeledThreadIds(getOrCreateLabel(CONFIG.LABELS.CLOSED)), countMap);
+    const countMap = buildReminderCountMap_(entry.address);
+    let pending    = collectPending_(entry.address, daysAgo_(CONFIG.WAIT_DAYS),
+      getLabeledThreadIds_(getOrCreateLabel_(CONFIG.LABELS.ESCALATED)),
+      getLabeledThreadIds_(getOrCreateLabel_(CONFIG.LABELS.CLOSED)), countMap);
 
     if (CONFIG.MAX_REMINDERS > 0 && pending.length > CONFIG.MAX_REMINDERS) {
       pending = pending.slice(0, CONFIG.MAX_REMINDERS);
     }
 
     if (pending.length > 0) {
-      sendDigest(entry, pending);
+      sendDigest_(entry, pending);
       processed += pending.length;
     }
   });
@@ -947,17 +947,17 @@ function dryRunWithMax(maxReminders) {
 
   let processed = 0;
   CONFIG.WATCHLIST.forEach(entry => {
-    const countMap = buildReminderCountMap(entry.address);
-    let pending    = collectPending(entry.address, daysAgo(CONFIG.WAIT_DAYS),
-      getLabeledThreadIds(getOrCreateLabel(CONFIG.LABELS.ESCALATED)),
-      getLabeledThreadIds(getOrCreateLabel(CONFIG.LABELS.CLOSED)), countMap);
+    const countMap = buildReminderCountMap_(entry.address);
+    let pending    = collectPending_(entry.address, daysAgo_(CONFIG.WAIT_DAYS),
+      getLabeledThreadIds_(getOrCreateLabel_(CONFIG.LABELS.ESCALATED)),
+      getLabeledThreadIds_(getOrCreateLabel_(CONFIG.LABELS.CLOSED)), countMap);
 
     if (CONFIG.MAX_REMINDERS > 0 && pending.length > CONFIG.MAX_REMINDERS) {
       pending = pending.slice(0, CONFIG.MAX_REMINDERS);
     }
 
     if (pending.length > 0) {
-      sendDigest(entry, pending);
+      sendDigest_(entry, pending);
       processed += pending.length;
     }
   });

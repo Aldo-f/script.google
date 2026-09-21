@@ -71,7 +71,7 @@ const CONFIG = {
  * @returns {GoogleAppsScript.Drive.Folder} The backup folder
  * @throws {Error} If the folder ID is specified but not found
  */
-function getOrCreateBackupFolder() {
+function getOrCreateBackupFolder_() {
   if (CONFIG.DRIVE_FOLDER_ID) {
     const folder = DriveApp.getFolderById(CONFIG.DRIVE_FOLDER_ID);
     if (!folder) {
@@ -104,12 +104,12 @@ function getOrCreateBackupFolder() {
  * @param {GoogleAppsScript.Drive.Folder} folder - The Drive folder
  * @returns {string} A unique filename safe for Drive
  */
-function getUniqueFilename(originalName, threadId, folder) {
+function getUniqueFilename_(originalName, threadId, folder) {
   // Check if a file with this name already exists in the folder
   const existing = folder.getFilesByName(originalName);
   if (existing.hasNext()) {
     // A file with the same name already exists — append thread ID for uniqueness
-    const ext = getExtension(originalName);
+    const ext = getExtension_(originalName);
     const base = originalName.slice(0, -(ext ? ext.length + 1 : 0));
     const timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd_HHmmss');
     const newName = `${base}_${timestamp}_${threadId.substring(0, 8)}${ext ? '.' + ext : ''}`;
@@ -125,7 +125,7 @@ function getUniqueFilename(originalName, threadId, folder) {
  * @param {string} filename
  * @returns {string} Extension without dot, or empty string if none
  */
-function getExtension(filename) {
+function getExtension_(filename) {
   const lastDot = filename.lastIndexOf('.');
   if (lastDot <= 0) return ''; // No dot, or dot is the first char (hidden file)
   return filename.slice(lastDot + 1);
@@ -140,7 +140,7 @@ function getExtension(filename) {
  * @param {string} threadId
  * @returns {{name: string, size: number, driveId: string}} Metadata about the saved file
  */
-function saveAttachment(attachment, folder, threadId) {
+function saveAttachment_(attachment, folder, threadId) {
   // If zip mode, we'll collect and return metadata without writing individual files
   // The actual zip writing happens in processAttachments after all attachments are collected
   if (CONFIG.ZIP_ATTACHMENTS) {
@@ -156,7 +156,7 @@ function saveAttachment(attachment, folder, threadId) {
   }
 
   const originalName = attachment.getName();
-  const uniqueName = getUniqueFilename(originalName, threadId, folder);
+  const uniqueName = getUniqueFilename_(originalName, threadId, folder);
   const blob = attachment.copyBlob();
   blob.setName(uniqueName);
   const file = folder.createFile(blob);
@@ -177,7 +177,7 @@ function saveAttachment(attachment, folder, threadId) {
  * @param {string} messageId - Gmail message ID
  * @returns {string} Raw RFC 2822 message (base64url-encoded)
  */
-function getRawMessage(messageId) {
+function getRawMessage_(messageId) {
   const message = Gmail.Users.Messages.get('me', messageId, { format: 'raw' });
   const raw = message.raw;
   
@@ -204,8 +204,8 @@ function getRawMessage(messageId) {
  * @param {string} messageId - Gmail message ID
  * @returns {byte[]} Decoded message bytes
  */
-function getRawMessageBytes(messageId) {
-  return decodeRawMessage(getRawMessage(messageId));
+function getRawMessageBytes_(messageId) {
+  return decodeRawMessage_(getRawMessage_(messageId));
 }
 
 /**
@@ -228,11 +228,12 @@ function getRawMessageBytes(messageId) {
  * @param {string} rawMessage - base64url-encoded RFC 2822 message OR already decoded message
  * @returns {byte[]} Decoded message bytes
  */
-function decodeRawMessage(rawMessage) {
+function decodeRawMessage_(rawMessage) {
   const msgStr = String(rawMessage);
   
   // Check if already decoded (RFC 2822 headers visible)
-  const decodedHeaders = ['Return-Path:', 'Received:', 'From:', 'To:', 'Subject:', 'Date:', 'Message-ID:'];
+  // Headers may appear with URL-encoded spaces (+) in the raw preview
+  const decodedHeaders = ['Return-Path:', 'Received:', 'From:', 'To:', 'Subject:', 'Date:', 'Message-ID:', 'Delivered-To:', 'Delivered+To:', 'MIME-Version:', 'X-Received:'];
   const trimmed = msgStr.trim();
   let isDecoded = false;
   for (const header of decodedHeaders) {
@@ -240,6 +241,11 @@ function decodeRawMessage(rawMessage) {
       isDecoded = true;
       break;
     }
+  }
+  
+  // Also check for common decoded patterns (e.g., email addresses, dates)
+  if (!isDecoded && /@gmail\.com|@googlemail\.com|Received:|MIME-Version:/.test(trimmed)) {
+    isDecoded = true;
   }
   
   if (isDecoded) {
@@ -265,9 +271,9 @@ function decodeRawMessage(rawMessage) {
   }
 }
 
-function stripAttachmentsFromRaw(rawMessage, attachmentNames) {
+function stripAttachmentsFromRaw_(rawMessage, attachmentNames) {
   // Gmail API returns raw messages as base64url-encoded RFC 2822 message.
-  const decoded = decodeRawMessage(rawMessage);
+  const decoded = decodeRawMessage_(rawMessage);
   const messageString = Utilities.newBlob(decoded).getDataAsString();
 
   // Parse the message: extract headers and body
@@ -292,7 +298,7 @@ function stripAttachmentsFromRaw(rawMessage, attachmentNames) {
   const parts = body.split('--' + boundary);
 
   const keptParts = [];
-  const attachmentNote = buildAttachmentNote(attachmentNames);
+  const attachmentNote = buildAttachmentNote_(attachmentNames);
 
   for (const part of parts) {
     if (part.trim() === '' || part.trim() === '--') continue;
@@ -333,7 +339,7 @@ function stripAttachmentsFromRaw(rawMessage, attachmentNames) {
   newBody += '--' + boundary + '--\r\n';
 
   // Append the attachment note to the text/plain part
-  newBody = appendNoteToTextPart(newBody, attachmentNote);
+  newBody = appendNoteToTextPart_(newBody, attachmentNote);
 
   // Rebuild full message
   const newMessage = headers + '\r\n\r\n' + newBody;
@@ -346,7 +352,7 @@ function stripAttachmentsFromRaw(rawMessage, attachmentNames) {
  * @param {string[]} attachmentNames
  * @returns {string} HTML + plain text note
  */
-function buildAttachmentNote(attachmentNames) {
+function buildAttachmentNote_(attachmentNames) {
   const lines = ['Met bijlage(n) weggehaald en opgeslagen in Google Drive:'];
   attachmentNames.forEach(name => {
     lines.push('[Bijlage "' + name + '" verwijderd en opgeslagen in Google Drive]');
@@ -362,7 +368,7 @@ function buildAttachmentNote(attachmentNames) {
  * @param {string} note - The note text to append
  * @returns {string} Modified body
  */
-function appendNoteToTextPart(body, note) {
+function appendNoteToTextPart_(body, note) {
   // For simplicity, we append the note as a separate text/plain part
   // This is safe and ensures the note is always visible
   const boundaryMatch = body.match(/--([a-f0-9]+)/);
@@ -394,11 +400,11 @@ function appendNoteToTextPart(body, note) {
  * @param {GoogleAppsScript.Gmail.Label} processedLabel - Label to apply to the new message
  * @returns {object} The inserted message result from Gmail API
  */
-function insertRewrittenMessage(rawMessage, threadId, processedLabel) {
+function insertRewrittenMessage_(rawMessage, threadId, processedLabel) {
   const labelId = processedLabel ? processedLabel.getId() : null;
   
   // Convert raw message to base64url
-  const base64url = ensureBase64UrlEncoded(rawMessage);
+  const base64url = ensureBase64UrlEncoded_(rawMessage);
   
   // Build resource — raw must be INSIDE resource
   const resource = { raw: base64url };
@@ -439,7 +445,7 @@ function insertRewrittenMessage(rawMessage, threadId, processedLabel) {
  * @param {string} rawMessage - RFC 2822 message (decoded, base64url, or byte array string)
  * @returns {string} base64url-encoded message
  */
-function ensureBase64UrlEncoded(rawMessage) {
+function ensureBase64UrlEncoded_(rawMessage) {
   const msgStr = String(rawMessage);
   
   // Check if already decoded (RFC 2822 headers visible)
@@ -494,7 +500,7 @@ function processAttachments(threads) {
   const startTime = new Date();
   const timeoutMs = CONFIG.MAX_RUNTIME_SECONDS * 1000;
 
-  const folder = getOrCreateBackupFolder();
+  const folder = getOrCreateBackupFolder_();
   // No processed label — so adjusting the 10MB limit won't skip messages
   const processedLabel = null;
 
@@ -545,7 +551,7 @@ function processAttachments(threads) {
         // Check timeout before each message
         if (new Date() - startTime > timeoutMs) {
           Logger.log('[TIMEOUT] Approaching limit, saving state and stopping');
-          saveContinuationState(threads, threadIndex, msgIndex, processed);
+          saveContinuationState_(threads, threadIndex, msgIndex, processed);
           return { processed, totalAttachments, totalBytes, errors, hasMore: true };
         }
 
@@ -563,8 +569,8 @@ function processAttachments(threads) {
         Logger.log('[DRIVE] Email folder: ' + subfolderName);
 
         // 1. Save original .eml + attachments to email subfolder
-        const rawMessage = getRawMessage(messageId);
-        const emlBlob = Utilities.newBlob(getRawMessageBytes(messageId)).setName(subfolderName + '.eml');
+        const rawMessage = getRawMessage_(messageId);
+        const emlBlob = Utilities.newBlob(getRawMessageBytes_(messageId)).setName(subfolderName + '.eml');
         emailFolder.createFile(emlBlob);
         Logger.log('[DRIVE] Saved .eml: ' + subfolderName + '.eml');
 
@@ -572,7 +578,7 @@ function processAttachments(threads) {
         const savedFiles = [];
         const attachmentBlobs = [];
         for (const attachment of attachments) {
-          const saved = saveAttachment(attachment, emailFolder, threadId);
+          const saved = saveAttachment_(attachment, emailFolder, threadId);
           savedFiles.push(saved);
           if (CONFIG.ZIP_ATTACHMENTS && saved.blob) {
             attachmentBlobs.push(saved.blob);
@@ -594,10 +600,10 @@ function processAttachments(threads) {
 
         // 2. Strip attachments from already-fetched raw message
         const attachmentNames = attachments.map(a => a.getName());
-        const cleanRaw = stripAttachmentsFromRaw(rawMessage, attachmentNames);
+        const cleanRaw = stripAttachmentsFromRaw_(rawMessage, attachmentNames);
 
         // 3. Insert the rewritten message back into the same thread
-        insertRewrittenMessage(cleanRaw, threadId, processedLabel);
+        insertRewrittenMessage_(cleanRaw, threadId, processedLabel);
 
         // 4. Trash the original message (with heavy attachments)
         if (CONFIG.DRY_RUN || !CONFIG.TRASH_MESSAGES) {
@@ -623,7 +629,7 @@ function processAttachments(threads) {
     // Check timeout after each thread
     if (new Date() - startTime > timeoutMs) {
       Logger.log('[TIMEOUT] Approaching limit after thread, saving state and stopping');
-      saveContinuationState(threads, threadIndex + 1, 0, processed);
+      saveContinuationState_(threads, threadIndex + 1, 0, processed);
       return { processed, totalAttachments, totalBytes, errors, hasMore: true };
     }
   }
@@ -650,7 +656,7 @@ function processAttachments(threads) {
 /**
  * Saves continuation state to PropertiesService.
  */
-function saveContinuationState(threads, threadIndex, messageIndex, processedCount) {
+function saveContinuationState_(threads, threadIndex, messageIndex, processedCount) {
   const scriptProps = PropertiesService.getScriptProperties();
   const state = {
     threadIndex: threadIndex,
@@ -670,7 +676,7 @@ function saveContinuationState(threads, threadIndex, messageIndex, processedCoun
  * @param {string} name - Label name
  * @returns {GoogleAppsScript.Gmail.Label}
  */
-function getOrCreateLabel(name) {
+function getOrCreateLabel_(name) {
   try {
     return GmailApp.getUserLabelByName(name);
   } catch (e) {

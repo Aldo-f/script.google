@@ -21,7 +21,11 @@ const REQUIRED_FUNCTIONS = {
   ],
   FollowUpReminder: [
     'checkDigests', 'checkEscalations', 'processFollowUps', 'collectPending',
-    'sendDigest', 'sendEscalation', 'rewriteProse', 'composeBody', 'setup', 'syncLabels'
+    'sendDigest', 'sendEscalation', 'rewriteProse', 'composeBody', 'setup', 'syncLabels',
+    'previewPending', 'dryRun', 'testEscalationDraft', 'buildCombinedPdf',
+    'buildFallbackDigest', 'buildGroupedOverview', 'buildEscalationBody',
+    'extractMailContext', 'extractLocation', 'extractComplaint', 'extractTicketCode',
+    'hasReply', 'hasCrossThreadReply', 'getLabeledThreadIds', 'daysAgo', 'formatDate'
   ],
   AttachmentCleaner: [
     'getOrCreateBackupFolder', 'saveAttachment', 'processAttachments',
@@ -118,22 +122,25 @@ function main() {
         console.log(`    ✅ Syntax OK`);
       }
 
-      // Function check (only main Code.gs)
-      if (file === 'Code.gs') {
+      // Function check: scan all .gs files since functions are now in src/ modules
+      {
         const code = readFileSync(filePath, 'utf8');
         const missing = checkFunctions(project, code);
-        if (missing.length > 0) {
-          console.error(`    ❌ Missing functions: ${missing.join(', ')}`);
+        if (missing.length > 0 && file === 'Code.gs') {
+          console.error(`    ❌ Missing functions in Code.gs: ${missing.join(', ')}`);
           allOk = false;
-        } else {
-          console.log(`    ✅ All required functions present`);
+        } else if (missing.length > 0) {
+          console.log(`    ℹ️  Functions in ${file} (not in Code.gs): ${missing.join(', ')}`);
         }
 
-        if (!checkConfig(code)) {
-          console.error(`    ❌ Missing CONFIG object`);
-          allOk = false;
-        } else {
-          console.log(`    ✅ CONFIG object present`);
+        if (file === 'Code.gs') {
+          const code = readFileSync(filePath, 'utf8');
+          if (!checkConfig(code)) {
+            console.error(`    ❌ Missing CONFIG object`);
+            allOk = false;
+          } else {
+            console.log(`    ✅ CONFIG object present`);
+          }
         }
       }
     }

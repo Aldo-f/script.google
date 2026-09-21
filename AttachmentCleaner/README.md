@@ -4,12 +4,13 @@ Automatically removes large attachments from Gmail to save storage space while p
 
 ## Features
 
-- **Large attachment detection** – Finds emails with attachments larger than 10 MB using the query `has:attachment larger:10M -label:bijlagen-verwerkt`
+- **Large attachment detection** – Finds emails with attachments larger than 10 MB using the query `has:attachment larger:10M -label:bijlagen-verwerkt`
 - **Automatic backup** – All attachments are saved to a dedicated Google Drive folder (`Gmail Bijlagen Backup`)
 - **Metadata preservation** – Original send date, sender, recipients, subject, and full message body are kept in the rewritten email
 - **Advanced Gmail API** – Uses `Gmail.Users.Messages.insert` with `internalDateSource: "dateHeader"` to preserve original timestamps
 - **Safety** – Original messages are moved to trash after processing (unless `DRY_RUN` is enabled)
 - **Duplicate prevention** – If a file with the same name already exists in the backup folder, a timestamped version is created
+- **Periodic cleanup** – Hourly trigger runs automatically to process new large emails
 - **Dry-run mode** – Test the script without making any changes
 - **Robust error handling** – Individual message failures don't stop the entire process
 
@@ -42,14 +43,15 @@ Automatically removes large attachments from Gmail to save storage space while p
    - `TRASH_MESSAGES` – Set to `false` to skip trashing originals
 
 ### 4. Grant Permissions
-   Run `processAttachments()` once and authorize required scopes when prompted:
-   - `https://www.googleapis.com/auth/gmail.modify` (read, write, delete Gmail)
-   - `https://www.googleapis.com/auth/drive.file` (create/edit Drive files)
-   - `https://www.googleapis.com/auth/script.scriptapp` (manage triggers)
+   - Run `setupTrigger()` once to authorize required scopes
+   - Required permissions:
+     - `https://www.googleapis.com/auth/gmail.modify` (read, write, delete Gmail)
+     - `https://www.googleapis.com/auth/drive.file` (create/edit Drive files)
+     - `https://www.googleapis.com/auth/script.scriptapp` (manage triggers)
 
 ### 5. Run the Script
    - Manual test: Run `processAttachments()` once
-   - Or run `dryRun()` for a quick single-message test
+   - Automatic cleanup: Run `setupTrigger()` to create hourly trigger
 
 ## How It Works
 
@@ -78,6 +80,12 @@ Automatically removes large attachments from Gmail to save storage space while p
 | `BATCH_SIZE` | `10` | Messages per execution (prevents timeout) |
 | `DRY_RUN` | `false` | If true, skips actual changes |
 | `TRASH_MESSAGES` | `true` | If false, originals not trashed |
+
+## Trigger Management
+
+- **Start automatic processing**: Run `setupTrigger()` once
+- **Stop automatic processing**: Run `removeTrigger()`
+- **Check existing triggers**: View in **Triggers** sidebar in Apps Script editor
 
 ## Manual Testing
 

@@ -11,6 +11,7 @@
 | **FollowUpReminder** | `TestCore.gs` | Core workflow functions (new) | 18 |
 | **LabelReminder** | `Test.gs` | Core parsing/language/fallback functions | 14 |
 | **LabelReminder** | `TestCore.gs` | Core workflow functions (new) | 16 |
+| **AttachmentCleaner** | `TestCore.gs` | Core workflow / pure functions (new) | 11 |
 
 ### Master Test Runners
 

@@ -12,10 +12,10 @@ Bericht: Beste, Ik maak melding van een gevaarlijke situatie op het aangegeven p
   
   const recipient = { name: 'AWV-klantendienst', email: 'klantendienst-awv@wegenenverkeer.be' };
   
-  log('╔══════════════════════════════════════════════════════════════╗');
-  log('║  IRRITATION LADDER BY REMINDER COUNT - 24 EXAMPLES          ║');
-  log('║  (Based on how many times already reminded, not days)        ║');
-  log('╚══════════════════════════════════════════════════════════════╝');
+  log(`╔══════════════════════════════════════════════════════════════╗`);
+  log(`║  IRRITATION LADDER BY REMINDER COUNT - 24 EXAMPLES          ║`);
+  log(`║  (Based on how many times already reminded, not days)        ║`);
+  log(`╚══════════════════════════════════════════════════════════════╝`);
   log('');
   
   // Generate examples for different reminder counts
@@ -29,12 +29,12 @@ Bericht: Beste, Ik maak melding van een gevaarlijke situatie op het aangegeven p
     const tone = getToneFromReminderCount(count);
     log(`[TONE]: ${tone}`);
     log('');
-    log('[SIMULATED AI RESPONSE]:');
+    log(`[SIMULATED AI RESPONSE]:`);
     log(generateExampleEmail(count));
   });
   
   log('\n\n' + '═'.repeat(70));
-  log('END OF TEST');
+  log(`END OF TEST`);
   log('═'.repeat(70));
 }
 

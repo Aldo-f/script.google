@@ -6,6 +6,7 @@
     "appsscript.json",
     "Code.gs",
     "Test.gs",
-    "AIProviders.test.gs"
+    "AIProviders.test.gs",
+    "TestCore.gs"
   ]
 }

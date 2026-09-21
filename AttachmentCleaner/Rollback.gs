@@ -39,7 +39,7 @@ const ROLLBACK_CONFIG = {
  * Gets the backup Drive folder.
  * @returns {GoogleAppsScript.Drive.Folder} The backup folder
  */
-function getBackupFolder() {
+function getBackupFolder_() {
   if (ROLLBACK_CONFIG.DRIVE_FOLDER_ID) {
     const folder = DriveApp.getFolderById(ROLLBACK_CONFIG.DRIVE_FOLDER_ID);
     if (!folder) {
@@ -63,7 +63,7 @@ function getBackupFolder() {
  * Gets or creates the "restored" label.
  * @returns {GoogleAppsScript.Gmail.Label} The label
  */
-function getOrCreateRestoredLabel() {
+function getOrCreateRestoredLabel_() {
   try {
     const existing = GmailApp.getUserLabelByName(ROLLBACK_CONFIG.RESTORED_LABEL);
     Logger.log('[ROLLBACK] Found existing label: ' + ROLLBACK_CONFIG.RESTORED_LABEL);
@@ -86,8 +86,8 @@ function getOrCreateRestoredLabel() {
  * Returns an array of { file, subfolder, subject, date } objects.
  * @returns {Array} Array of backup file info
  */
-function listBackupEmlFiles() {
-  const backupFolder = getBackupFolder();
+function listBackupEmlFiles_() {
+  const backupFolder = getBackupFolder_();
   const results = [];
 
   // Get all subfolders (each represents one processed email)
@@ -122,7 +122,7 @@ function listBackupEmlFiles() {
  * @param {GoogleAppsScript.Drive.File} emlFile - The .eml file
  * @returns {string} Base64url-encoded raw RFC 2822 message
  */
-function readEmlFile(emlFile) {
+function readEmlFile_(emlFile) {
   const blob = emlFile.getBlob();
   const bytes = blob.getBytes();
   const base64 = Utilities.base64Encode(bytes);
@@ -138,7 +138,7 @@ function readEmlFile(emlFile) {
  * @param {GoogleAppsScript.Gmail.Label} label - Optional label to apply
  * @returns {object} The inserted message result
  */
-function insertRestoredMessage(rawMessage, threadId, label) {
+function insertRestoredMessage_(rawMessage, threadId, label) {
   const labelId = label ? label.getId() : null;
   
   // Build resource — raw must be INSIDE resource
@@ -182,7 +182,7 @@ function insertRestoredMessage(rawMessage, threadId, label) {
  * @param {string} subfolderName - Name of the subfolder
  * @returns {string|null} Thread ID or null if not found
  */
-function findThreadIdFromBackup(subfolderName) {
+function findThreadIdFromBackup_(subfolderName) {
   // Parse date and subject from subfolder name: "YYYY-MM-DD - Subject"
   const match = subfolderName.match(/^(\d{4}-\d{2}-\d{2})\s*-\s*(.+)$/);
   if (!match) {
@@ -227,7 +227,7 @@ function findThreadIdFromBackup(subfolderName) {
 function rollbackOneEmail(index = 0) {
   Logger.log('=== ROLLBACK START (single email) ===');
   
-  const backups = listBackupEmlFiles();
+  const backups = listBackupEmlFiles_();
   Logger.log('[ROLLBACK] Found ' + backups.length + ' backup .eml file(s)');
   
   if (backups.length === 0) {
@@ -246,16 +246,16 @@ function rollbackOneEmail(index = 0) {
   Logger.log('[ROLLBACK] DRY_RUN: ' + ROLLBACK_CONFIG.DRY_RUN);
 
   // Find the original thread ID
-  const threadId = findThreadIdFromBackup(backup.subfolderName);
+  const threadId = findThreadIdFromBackup_(backup.subfolderName);
   if (!threadId) {
     Logger.log('[ROLLBACK] Could not find original thread. Trying to insert as new thread...');
     // As fallback, try to insert without threadId (will create new thread)
     // This preserves the email but not the original thread
-    return restoreEmlToNewThread(backup);
+    return restoreEmlToNewThread_(backup);
   }
 
   // Read the .eml file
-  const rawMessage = readEmlFile(backup.file);
+  const rawMessage = readEmlFile_(backup.file);
   Logger.log('[ROLLBACK] Read .eml file, size: ' + rawMessage.length + ' chars');
 
   if (ROLLBACK_CONFIG.DRY_RUN) {
@@ -271,8 +271,8 @@ function rollbackOneEmail(index = 0) {
   }
 
   // Insert the restored message
-  const restoredLabel = getOrCreateRestoredLabel();
-  const result = insertRestoredMessage(rawMessage, threadId, restoredLabel);
+  const restoredLabel = getOrCreateRestoredLabel_();
+  const result = insertRestoredMessage_(rawMessage, threadId, restoredLabel);
   
   Logger.log('[ROLLBACK] Successfully restored email to thread ' + threadId);
   Logger.log('=== ROLLBACK COMPLETE ===');
@@ -293,10 +293,10 @@ function rollbackOneEmail(index = 0) {
  * @param {object} backup - Backup file info
  * @returns {object} Result object
  */
-function restoreEmlToNewThread(backup) {
+function restoreEmlToNewThread_(backup) {
   Logger.log('[ROLLBACK] Restoring as new thread (original thread not found)');
 
-  const rawMessage = readEmlFile(backup.file);
+  const rawMessage = readEmlFile_(backup.file);
 
   if (ROLLBACK_CONFIG.DRY_RUN) {
     Logger.log('[ROLLBACK] DRY_RUN mode — not inserting message');
@@ -354,7 +354,7 @@ function restoreEmlToNewThread(backup) {
 function rollbackAllEmails() {
   Logger.log('=== ROLLBACK START (all emails) ===');
   
-  const backups = listBackupEmlFiles();
+  const backups = listBackupEmlFiles_();
   Logger.log('[ROLLBACK] Found ' + backups.length + ' backup .eml file(s)');
   
   if (backups.length === 0) {
@@ -397,8 +397,8 @@ function rollbackAllEmails() {
  * Lists all available backup emails for rollback.
  * @returns {Array} Array of backup info
  */
-function listRollbackCandidates() {
-  const backups = listBackupEmlFiles();
+function listRollbackCandidates_() {
+  const backups = listBackupEmlFiles_();
   
   Logger.log('[ROLLBACK] Available backups for restoration:');
   backups.forEach((backup, index) => {

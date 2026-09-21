@@ -12,10 +12,10 @@ Bericht: Beste, Ik maak melding van een gevaarlijke situatie op het aangegeven p
   
   const recipient = { name: 'AWV-klantendienst', email: 'klantendienst-awv@wegenenverkeer.be' };
   
-  log('╔══════════════════════════════════════════════════════════════╗');
-  log('║  IRRITATION LADDER - COMBINED (Reminders + Time)            ║');
-  log('║  Tone based on: # reminders sent AND days since first msg   ║');
-  log('╚══════════════════════════════════════════════════════════════╝');
+  log(`╔══════════════════════════════════════════════════════════════╗`);
+  log(`║  IRRITATION LADDER - COMBINED (Reminders + Time)            ║`);
+  log(`║  Tone based on: # reminders sent AND days since first msg   ║`);
+  log(`╚══════════════════════════════════════════════════════════════╝`);
   log('');
   
   // Generate 24 examples with different combinations
@@ -64,12 +64,12 @@ Bericht: Beste, Ik maak melding van een gevaarlijke situatie op het aangegeven p
     log(`[DAYS SINCE FIRST]: ${scenario.daysSinceFirst}`);
     log(`[TONE]: ${tone}`);
     log('');
-    log('[AI RESPONSE]:');
+    log(`[AI RESPONSE]:`);
     log(generateExampleEmail(scenario.reminders, scenario.daysSinceFirst));
   });
   
   log('\n\n' + '═'.repeat(70));
-  log('END OF TEST');
+  log(`END OF TEST`);
   log('═'.repeat(70));
 }
 
