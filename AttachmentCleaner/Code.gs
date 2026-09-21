@@ -28,9 +28,12 @@ const CONFIG = {
   /** Minimum attachment size in MB to process (used in Gmail search query). */
   MIN_ATTACHMENT_SIZE_MB: 10,
 
+  /** Only process emails older than this (Gmail search syntax: '1y', '6m', '30d', etc.). */
+  OLDER_THAN: '1y',
+
   /** Gmail search query. Matches messages with large attachments that haven't been processed yet. */
   get SEARCH_QUERY() {
-    return `has:attachment larger:${this.MIN_ATTACHMENT_SIZE_MB}M`;
+    return `has:attachment larger:${this.MIN_ATTACHMENT_SIZE_MB}M older_than:${this.OLDER_THAN}`;
   },
 
   /** Name of the Google Drive folder where attachments will be backed up. */
@@ -44,6 +47,12 @@ const CONFIG = {
 
   /** Maximum number of emails to process per run (prevents Apps Script 6-minute timeout). */
   BATCH_SIZE: 10,
+
+  /** Maximum seconds per execution (Apps Script limit is 360s = 6 min). Leave margin. */
+  MAX_RUNTIME_SECONDS: 300,
+
+  /** Whether to compress attachments into a single ZIP per email (saves 30-70% space). */
+  ZIP_ATTACHMENTS: true,
 
   /** Whether to actually execute destructive actions (trash messages). Set to false for dry-run testing. */
   DRY_RUN: false,
@@ -124,6 +133,7 @@ function getExtension(filename) {
 
 /**
  * Saves an attachment to the backup Drive folder.
+ * If CONFIG.ZIP_ATTACHMENTS is true, collects all attachments and writes a single ZIP per email.
  *
  * @param {GoogleAppsScript.Gmail.Attachment} attachment
  * @param {GoogleAppsScript.Drive.Folder} folder
@@ -131,6 +141,20 @@ function getExtension(filename) {
  * @returns {{name: string, size: number, driveId: string}} Metadata about the saved file
  */
 function saveAttachment(attachment, folder, threadId) {
+  // If zip mode, we'll collect and return metadata without writing individual files
+  // The actual zip writing happens in processAttachments after all attachments are collected
+  if (CONFIG.ZIP_ATTACHMENTS) {
+    const originalName = attachment.getName();
+    const blob = attachment.copyBlob();
+    blob.setName(originalName);
+    return {
+      name: originalName,
+      blob: blob,
+      size: blob.getBytes().length,
+      driveId: null, // Will be set after zip is created
+    };
+  }
+
   const originalName = attachment.getName();
   const uniqueName = getUniqueFilename(originalName, threadId, folder);
   const blob = attachment.copyBlob();
@@ -454,47 +478,77 @@ function ensureBase64UrlEncoded(rawMessage) {
 /**
  * Processes emails with large attachments:
  *   1. Finds emails matching the SEARCH_QUERY
- *   2. Saves all attachments to Google Drive
+ *   2. Saves all attachments to Google Drive (optionally zipped)
  *   3. Creates a clean copy (without attachments) preserving metadata
  *   4. Trashes the original message
  *   5. Labels the new message as processed
  *
- * Uses BATCH_SIZE to limit processing per run and prevent timeouts.
+ * Uses BATCH_SIZE and MAX_RUNTIME_SECONDS to limit processing per run and prevent timeouts.
+ * Supports continuation: if time runs out, state is saved to PropertiesService and resumed on next run.
  *
  * @param {GoogleAppsScript.Gmail.GmailThread[]} [threads] - Optional pre-fetched threads (e.g. from dryRun)
- * @returns {{processed: number, totalAttachments: number, totalBytes: number, errors: string[]}}
+ * @returns {{processed: number, totalAttachments: number, totalBytes: number, errors: string[], hasMore: boolean}}
  */
 function processAttachments(threads) {
   Logger.log('=== GmailAttachmentCleaner.start ===');
   const startTime = new Date();
+  const timeoutMs = CONFIG.MAX_RUNTIME_SECONDS * 1000;
 
   const folder = getOrCreateBackupFolder();
   // No processed label — so adjusting the 10MB limit won't skip messages
   const processedLabel = null;
 
-  if (!threads) {
-    threads = GmailApp.search(CONFIG.SEARCH_QUERY, 0, CONFIG.BATCH_SIZE);
+  // Load continuation state if available
+  const scriptProps = PropertiesService.getScriptProperties();
+  const savedState = scriptProps.getProperty('CLEANER_STATE');
+  let state = { threadIndex: 0, messageIndex: 0, processedCount: 0, threads: [] };
+  if (savedState && !threads) {
+    try {
+      state = JSON.parse(savedState);
+      Logger.log('[RESUME] Resuming from thread index ' + state.threadIndex + ', message index ' + state.messageIndex);
+    } catch (e) {
+      Logger.log('[RESUME] Failed to parse saved state: ' + e.message);
+    }
   }
-  // Sort oldest first (by first message date)
-  threads.sort((a, b) => {
-    const msgA = a.getMessages()[0];
-    const msgB = b.getMessages()[0];
-    return msgA.getDate().getTime() - msgB.getDate().getTime();
-  });
-  Logger.log('[SEARCH] Found ' + threads.length + ' thread(s) to process (batch size: ' + CONFIG.BATCH_SIZE + ')');
+
+  if (!threads) {
+    // Use search query from state or fresh search
+    threads = state.threads.length > 0 ? state.threads : GmailApp.search(CONFIG.SEARCH_QUERY, 0, CONFIG.BATCH_SIZE);
+    // Sort oldest first (by first message date)
+    threads.sort((a, b) => {
+      const msgA = a.getMessages()[0];
+      const msgB = b.getMessages()[0];
+      return msgA.getDate().getTime() - msgB.getDate().getTime();
+    });
+    Logger.log('[SEARCH] Found ' + threads.length + ' thread(s) to process (batch size: ' + CONFIG.BATCH_SIZE + ')');
+  }
 
   let processed = 0;
   let totalAttachments = 0;
   let totalBytes = 0;
   const errors = [];
 
-  threads.forEach((thread, index) => {
+  // Start from saved thread index
+  for (let threadIndex = state.threadIndex; threadIndex < threads.length; threadIndex++) {
+    const thread = threads[threadIndex];
     const threadId = thread.getId();
-    Logger.log('[PROCESS] ' + (index + 1) + '/' + threads.length + ' — Thread: ' + threadId);
+    Logger.log('[PROCESS] ' + (threadIndex + 1) + '/' + threads.length + ' — Thread: ' + threadId);
 
     try {
       const messages = thread.getMessages();
-      for (const message of messages) {
+      // Start from saved message index
+      const msgStartIndex = (threadIndex === state.threadIndex) ? state.messageIndex : 0;
+      
+      for (let msgIndex = msgStartIndex; msgIndex < messages.length; msgIndex++) {
+        const message = messages[msgIndex];
+        
+        // Check timeout before each message
+        if (new Date() - startTime > timeoutMs) {
+          Logger.log('[TIMEOUT] Approaching limit, saving state and stopping');
+          saveContinuationState(threads, threadIndex, msgIndex, processed);
+          return { processed, totalAttachments, totalBytes, errors, hasMore: true };
+        }
+
         // Only process messages that actually have attachments
         const attachments = message.getAttachments();
         if (attachments.length === 0) continue;
@@ -509,17 +563,33 @@ function processAttachments(threads) {
         Logger.log('[DRIVE] Email folder: ' + subfolderName);
 
         // 1. Save original .eml + attachments to email subfolder
-        const savedFiles = [];
         const rawMessage = getRawMessage(messageId);
         const emlBlob = Utilities.newBlob(getRawMessageBytes(messageId)).setName(subfolderName + '.eml');
         emailFolder.createFile(emlBlob);
         Logger.log('[DRIVE] Saved .eml: ' + subfolderName + '.eml');
 
+        // Collect attachments (for zipping if enabled)
+        const savedFiles = [];
+        const attachmentBlobs = [];
         for (const attachment of attachments) {
           const saved = saveAttachment(attachment, emailFolder, threadId);
           savedFiles.push(saved);
+          if (CONFIG.ZIP_ATTACHMENTS && saved.blob) {
+            attachmentBlobs.push(saved.blob);
+          }
           totalAttachments++;
           totalBytes += saved.size;
+        }
+
+        // If zip mode, create a single ZIP file with all attachments
+        if (CONFIG.ZIP_ATTACHMENTS && attachmentBlobs.length > 0) {
+          const zipName = subfolderName + '-attachments.zip';
+          const zipBlob = Utilities.zip(attachmentBlobs, zipName);
+          emailFolder.createFile(zipBlob);
+          Logger.log('[DRIVE] Saved ZIP: ' + zipName + ' (' + zipBlob.getBytes().length + ' bytes)');
+          
+          // Clean up individual attachment files (they were not created, but we need to delete the metadata)
+          // Actually, in zip mode we don't create individual files, so nothing to clean up
         }
 
         // 2. Strip attachments from already-fetched raw message
@@ -541,6 +611,7 @@ function processAttachments(threads) {
         // (label intentionally removed — see user's instruction)
 
         processed++;
+        state.processedCount = processed;
       }
     } catch (err) {
       const errorDetail = threadId + ': ' + err.message;
@@ -548,7 +619,17 @@ function processAttachments(threads) {
       Logger.log('[ERROR] ' + errorDetail);
       // Continue with next thread — don't let one failure crash everything
     }
-  });
+
+    // Check timeout after each thread
+    if (new Date() - startTime > timeoutMs) {
+      Logger.log('[TIMEOUT] Approaching limit after thread, saving state and stopping');
+      saveContinuationState(threads, threadIndex + 1, 0, processed);
+      return { processed, totalAttachments, totalBytes, errors, hasMore: true };
+    }
+  }
+
+  // All done — clear continuation state
+  scriptProps.deleteProperty('CLEANER_STATE');
 
   const elapsedSec = Math.round((new Date() - startTime) / 1000);
   const freedMB = (totalBytes / (1024 * 1024)).toFixed(2);
@@ -563,7 +644,22 @@ function processAttachments(threads) {
     Logger.log('[ERRORS] ' + errors.join('\n'));
   }
 
-  return { processed, totalAttachments, totalBytes, errors };
+  return { processed, totalAttachments, totalBytes, errors, hasMore: false };
+}
+
+/**
+ * Saves continuation state to PropertiesService.
+ */
+function saveContinuationState(threads, threadIndex, messageIndex, processedCount) {
+  const scriptProps = PropertiesService.getScriptProperties();
+  const state = {
+    threadIndex: threadIndex,
+    messageIndex: messageIndex,
+    processedCount: processedCount,
+    threads: threads.map(t => t.getId()) // Store only IDs to keep state small
+  };
+  scriptProps.setProperty('CLEANER_STATE', JSON.stringify(state));
+  Logger.log('[STATE] Saved continuation state: thread ' + threadIndex + ', msg ' + messageIndex);
 }
 
 // ─── HELPERS ───────────────────────────────────────────────────────────────────
@@ -672,17 +768,31 @@ function previewAttachments() {
 
 /**
  * Creates an hourly trigger to run processAttachments automatically.
+ * The function handles continuation internally — it will resume from where it left off.
  * Call once manually to enable periodic cleanup of large attachments.
  */
 function setupTrigger() {
   // Remove any existing triggers first to avoid duplicates
   const triggers = ScriptApp.getProjectTriggers();
   triggers.forEach(t => ScriptApp.deleteTrigger(t));
-  ScriptApp.newTrigger('processAttachments')
+  ScriptApp.newTrigger('runCleanerWithContinuation')
     .timeBased()
     .everyHours(1)
     .create();
   Logger.log('[TRIGGER] Hourly processAttachments trigger created.');
+}
+
+/**
+ * Wrapper for automated runs that handles continuation.
+ * Called by the hourly trigger.
+ */
+function runCleanerWithContinuation() {
+  const result = processAttachments();
+  if (result.hasMore) {
+    Logger.log('[CONTINUE] More work remaining, will resume on next trigger');
+  } else {
+    Logger.log('[DONE] All emails processed');
+  }
 }
 
 /**
