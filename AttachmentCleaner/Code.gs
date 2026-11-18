@@ -59,6 +59,12 @@ const CONFIG = {
 
   /** Whether to actually move original messages to trash. Override in dry-run mode. */
   TRASH_MESSAGES: true,
+
+  /** Gleaner webhook endpoint (multi-user). */
+  WEBHOOK_URL: 'https://gleaner.aldof.duckdns.org/webhook/gmail-attachments',
+
+  /** Flag: use the self-hosted Gleaner webhook instead of Google Drive. */
+  USE_WEBHOOK: true,
 };
 
 // ─── DRIVE INTEGRATION ────────────────────────────────────────────────────────
@@ -495,6 +501,54 @@ function ensureBase64UrlEncoded_(rawMessage) {
  * @param {GoogleAppsScript.Gmail.GmailThread[]} [threads] - Optional pre-fetched threads (e.g. from dryRun)
  * @returns {{processed: number, totalAttachments: number, totalBytes: number, errors: string[], hasMore: boolean}}
  */
+/**
+ * Saves all attachments of `message` to the Google Drive folder `folder` under
+ * subfolder `subfolderName`.
+ *
+ * @param {GoogleAppsScript.Gmail.GmailMessage} message
+ * @param {GoogleAppsScript.Drive.Folder} folder
+ * @param {string} subfolderName
+ * @param {string} rawMessage - base64url-encoded raw RFC 2822 message
+ * @returns {{savedFiles: Array, attachmentCount: Number, bytes: Number}}
+ */
+function backupToDrive_(message, folder, subfolderName, rawMessage) {
+  const messageId = message.getId();
+  const threadId = message.getThread().getId();
+
+  const emailFolder = folder.createFolder(subfolderName);
+  Logger.log('[DRIVE] Email folder: ' + subfolderName);
+
+  // 1. Save original .eml + attachments to email subfolder
+  const emlBlob = Utilities.newBlob(getRawMessageBytes_(messageId)).setName(subfolderName + '.eml');
+  emailFolder.createFile(emlBlob);
+  Logger.log('[DRIVE] Saved .eml: ' + subfolderName + '.eml');
+
+  // Collect attachments (for zipping if enabled)
+  const savedFiles = [];
+  const attachmentBlobs = [];
+  for (const attachment of message.getAttachments()) {
+    const saved = saveAttachment_(attachment, emailFolder, threadId);
+    savedFiles.push(saved);
+    if (CONFIG.ZIP_ATTACHMENTS && saved.blob) {
+      attachmentBlobs.push(saved.blob);
+    }
+  }
+
+  // If zip mode, create a single ZIP file with all attachments
+  if (CONFIG.ZIP_ATTACHMENTS && attachmentBlobs.length > 0) {
+    const zipName = subfolderName + '-attachments.zip';
+    const zipBlob = Utilities.zip(attachmentBlobs, zipName);
+    emailFolder.createFile(zipBlob);
+    Logger.log('[DRIVE] Saved ZIP: ' + zipName + ' (' + zipBlob.getBytes().length + ' bytes)');
+  }
+
+  return {
+    savedFiles: savedFiles,
+    attachmentCount: attachmentBlobs.length,
+    bytes: savedFiles.reduce(function (acc, s) { return acc + (s.size ? s.size : 0); }, 0),
+  };
+}
+
 function processAttachments(threads) {
   Logger.log('=== GmailAttachmentCleaner.start ===');
   const startTime = new Date();
@@ -565,37 +619,24 @@ function processAttachments(threads) {
         const msgDate = Utilities.formatDate(message.getDate(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
         const safeSubject = (message.getSubject() || 'geen-onderwerp').replace(/[\\/:*?"<>|]/g, '-');
         const subfolderName = msgDate + ' - ' + safeSubject;
-        const emailFolder = folder.createFolder(subfolderName);
-        Logger.log('[DRIVE] Email folder: ' + subfolderName);
 
-        // 1. Save original .eml + attachments to email subfolder
+        // Fetch raw RFC 2822 message once — needed by both the legacy Drive backup and the webhook path
         const rawMessage = getRawMessage_(messageId);
-        const emlBlob = Utilities.newBlob(getRawMessageBytes_(messageId)).setName(subfolderName + '.eml');
-        emailFolder.createFile(emlBlob);
-        Logger.log('[DRIVE] Saved .eml: ' + subfolderName + '.eml');
 
-        // Collect attachments (for zipping if enabled)
-        const savedFiles = [];
-        const attachmentBlobs = [];
-        for (const attachment of attachments) {
-          const saved = saveAttachment_(attachment, emailFolder, threadId);
-          savedFiles.push(saved);
-          if (CONFIG.ZIP_ATTACHMENTS && saved.blob) {
-            attachmentBlobs.push(saved.blob);
+        if (CONFIG.USE_WEBHOOK) {
+          // ─── GLEANER WEBHOOK (multi-user) ──────────────────────────────────────────────
+          let webhookResult = null;
+          if (!CONFIG.DRY_RUN) {
+            webhookResult = uploadMessageAttachments_(message);
+            Logger.log('[WEBHOOK] stored: %s (%s att, %s bytes)',
+              webhookResult.downloadId, webhookResult.attachmentCount, webhookResult.zipSize);
+          } else {
+            Logger.log('[DRY-RUN] would upload %d attachments for %s',
+              message.getAttachments().length, message.getId());
           }
-          totalAttachments++;
-          totalBytes += saved.size;
-        }
-
-        // If zip mode, create a single ZIP file with all attachments
-        if (CONFIG.ZIP_ATTACHMENTS && attachmentBlobs.length > 0) {
-          const zipName = subfolderName + '-attachments.zip';
-          const zipBlob = Utilities.zip(attachmentBlobs, zipName);
-          emailFolder.createFile(zipBlob);
-          Logger.log('[DRIVE] Saved ZIP: ' + zipName + ' (' + zipBlob.getBytes().length + ' bytes)');
-          
-          // Clean up individual attachment files (they were not created, but we need to delete the metadata)
-          // Actually, in zip mode we don't create individual files, so nothing to clean up
+        } else {
+          // legacy Drive path — leave existing code here unchanged
+          backupToDrive_(message, folder, subfolderName, rawMessage);
         }
 
         // 2. Strip attachments from already-fetched raw message
@@ -770,6 +811,91 @@ function previewAttachments() {
 
   Logger.log('[PREVIEW] Total: ' + totalAttachments + ' attachment(s), ' + (totalBytes / (1024 * 1024)).toFixed(2) + ' MB');
 }
+
+// ─── GLEANER WEBHOOK (multi-user) ─────────────────────────────────────────────
+
+/**
+ * Returns the per-user Gleaner API token from Script Properties.
+ * The admin generates this token once and the user pastes it into
+ * Project Settings → Script Properties → WEBHOOK_TOKEN.
+ * @returns {string}
+ */
+function getWebhookToken_() {
+  const token = PropertiesService.getScriptProperties().getProperty('WEBHOOK_TOKEN');
+  if (!token) {
+    throw new Error(
+      'WEBHOOK_TOKEN not set. Ask your Gleaner admin for a token and add it ' +
+      'under Project Settings → Script Properties → WEBHOOK_TOKEN.'
+    );
+  }
+  return token;
+}
+
+/**
+ * Sends one email's attachments to the Gleaner webhook.
+ * @param {object} payload - {threadId, messageId, subject, from, date, attachments:[{filename,mimeType,base64Data}]}
+ * @returns {object} JSON response {downloadUrl, zipSize, attachmentCount, downloadId}
+ */
+function sendToWebhook_(payload) {
+  const response = UrlFetchApp.fetch(CONFIG.WEBHOOK_URL, {
+    method: 'post',
+    contentType: 'application/json',
+    headers: { Authorization: 'Bearer ' + getWebhookToken_() },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true,
+  });
+  const code = response.getResponseCode();
+  if (code < 200 || code >= 300) {
+    throw new Error('Gleaner webhook failed (HTTP ' + code + '): ' + response.getContentText());
+  }
+  return JSON.parse(response.getContentText());
+}
+
+/**
+ * Builds the webhook payload for one Gmail message and posts it.
+ * @param {GoogleAppsScript.Gmail.GmailMessage} message
+ * @returns {object} webhook response
+ */
+function uploadMessageAttachments_(message) {
+  const attachments = message.getAttachments({ includeInlineImages: false }).map(function (att) {
+    return {
+      filename: att.getName(),
+      mimeType: att.getContentType(),
+      base64Data: Utilities.base64Encode(att.getBytes()),
+    };
+  });
+  const payload = {
+    threadId: message.getThread().getId(),
+    messageId: message.getId(),
+    subject: message.getSubject(),
+    from: message.getFrom(),
+    date: message.getDate().toISOString(),
+    attachments: attachments,
+  };
+  Logger.log('[WEBHOOK] uploading %s attachments for message %s', attachments.length, message.getId());
+  return sendToWebhook_(payload);
+}
+
+/**
+ * Dry-run of the multi-user webhook: verifies token presence and prints the
+ * payload shape for the newest matching email WITHOUT uploading anything.
+ */
+function testWebhookPayload() {
+  const token = getWebhookToken_;
+  Logger.log('[TEST] token present (length %s)', token.length);
+  const threads = GmailApp.search(CONFIG.SEARCH_QUERY, 0, 1);
+  if (!threads.length) {
+    Logger.log('[TEST] no matching emails');
+    return;
+  }
+  const msg = threads[0].getMessages()[0];
+  const atts = msg.getAttachments({ includeInlineImages: false });
+  Logger.log('[TEST] message=%s subject=%s attachments=%s totalBytes=%s',
+    msg.getId(), msg.getSubject(), atts.length,
+    atts.reduce(function (s, a) { return s + a.getSize(); }, 0));
+  Logger.log('[TEST] would POST to %s', CONFIG.WEBHOOK_URL);
+}
+
 // ─── TRIGGER MANAGEMENT ───────────────────────────────────────────────────────
 
 /**

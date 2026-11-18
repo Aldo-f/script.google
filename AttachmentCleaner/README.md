@@ -126,3 +126,20 @@ Automatically removes large attachments from Gmail to save storage space while p
 [SUMMARY] Errors: 0
 [SUMMARY] Elapsed: 4s
 ```
+
+## Multi-user setup (Gleaner)
+
+Each user runs this Apps Script under their own Google account.
+
+1. Ask the Gleaner admin to create your account:
+   `curl -X POST https://gleaner.aldof.duckdns.org/admin/users \
+     -H "Authorization: Bearer ***" \
+     -H "Content-Type: application/json" \
+     -d '{"user_id":"you@example.com"}'`
+   The response contains a one-time `token`. Store it.
+2. In the Apps Script editor: **Project Settings → Script Properties → Add**
+   - `WEBHOOK_TOKEN` = the token from step 1.
+3. Run `testWebhookPayload()` once — the log must say `token present`.
+4. Run `processAttachments()` manually; check `gleaner.aldof.duckdns.org`
+   login with your token to see your items.
+5. Only after a successful manual run, enable the time trigger (`setupTrigger()`).
