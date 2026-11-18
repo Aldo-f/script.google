@@ -1,109 +1,41 @@
-# AGENTS.md – Quick Reference for OpenCode Sessions
+# AGENTS.md — Google Apps Script reminders (LabelReminder / FollowUpReminder / AttachmentCleaner)
 
-**Generated:** 2026-07-11T11:25:30+02:00
-**Commit:** 78d07f5
-**Branch:** main
+**Repo:** `/mnt/HDD1/dev/06-apps-script-google` · **Branch:** main · **Lang:** GAS V8 (JS) · **CI:** `.github/workflows/validate.yml`
 
-## Repository Overview
-- **Projects**: `LabelReminder` (generic label‑based reminders) and `FollowUpReminder` (AWV case follow‑up).
-- **Language**: Google Apps Script (JavaScript V8 runtime).
-- **Key Concepts**:
-  - **AI Waterfall** – `Gemini` → `FreeLLMAPI` → fallback template (see `shared/AIProviders.gs`).
-  - **DRY** – Shared AI provider moved to `shared/AIProviders.gs`; both projects import it via `clasp` push order.
-  - **Script Properties** – All optional: `GEMINI_API_KEY`, `FREE_LLM_API_KEY`, `OPENROUTER_API_KEY`. Fallback template used when all AI providers unavailable.
+**3 projects:** LabelReminder (label-based reminders, every 6h), FollowUpReminder (AWV case follow-up, weekly Tue/Thu), AttachmentCleaner (Gmail attachment cleanup, hourly). Shared `shared/AIProviders.gs` (Gemini → FreeLLMAPI → OpenRouter waterfall). Per-project `.clasp.json`; `filePushOrder` in root `.clasp.json` (stale — references non-existent `FollowUpReminder/src/`; see Pitfalls).
 
-## AGENTS.md Hierarchy
-```
-AGENTS.md (root — this file)
-├── LabelReminder/AGENTS.md     ← universal label reminders
-└── FollowUpReminder/AGENTS.md  ← AWV case follow‑up
-```
+## Dev
 
-## Repository Structure
-```
-script.google/
-├── shared/                     # Shared AI waterfall (deployed to both projects)
-│   └── AIProviders.gs
-├── LabelReminder/              # Universal label-based reminders
-├── FollowUpReminder/           # AWV case follow-up
-├── scripts/
-│   └── validate.js             # Local validation CLI
-├── .github/workflows/
-│   ├── validate.yml            # CI syntax + function check
-│   └── clasp-sync.yml          # CI deploys to both GAS projects
-├── packages/
-│   └── electron-app/           # Unrelated electron app stub (no source)
-└── FLOW.md, SPEC.md            # Architecture docs
-```
+- `npm run validate` (syntax + required functions + CONFIG check via `scripts/validate.js`)
+- `npm run push:label` / `push:followup` / `push:attachment` (`clasp push --force`)
+- `npm run pull:label` / `pull:followup` / `pull:attachment`
+- `npm run login` / `logout`; `npm run list`
+- `clasp run functionName` / `clasp tail-logs --simplified`
+- **Tests:** never run in CI (`if: false`); run manually in editor via `runAllTests()` / `runAllAITests()` / `runAllCoreTests()`
 
-## Common Commands
-| Task | Command |
-|------|---------|
-| Validate locally | `npm run validate` (runs `scripts/validate.js`) |
-| Push LabelReminder | `npm run push:label` |
-| Push FollowUpReminder | `npm run push:followup` |
-| Pull LabelReminder | `npm run pull:label` |
-| Pull FollowUpReminder | `npm run pull:followup` |
-| Login to clasp | `npm run login` |
-| Logout from clasp | `npm run logout` |
-| List clasp projects | `npm run list` |
-| **Run function (CLI)** | `clasp run functionName` |
-| **Tail logs (CLI)** | `clasp tail-logs --simplified` |
-| **Open script** | `clasp open-script` |
+## Setup (Script Properties)
 
-## CI / Validation
-- **GitHub Action** `.github/workflows/validate.yml` runs on every push/PR to `main`.
-- It parses all `*.gs` files, substitutes Apps Script globals, and checks syntax with `node --check`.
-- It also verifies required functions exist for each project and that a `CONFIG` object is declared.
-- Ensure any new functions are added to the validation lists.
-- **Note**: Tests are syntax-checked but never *executed* in CI — run manually via `runAllTests()` in the Apps Script editor.
+`GEMINI_API_KEY` (comma-separated, primary) · `FREE_LLM_API_KEY` (optional) · `OPENROUTER_API_KEY` (optional). Fallback template when all AI unavailable. `setup()` in each `Code.gs` logs missing keys.
 
-## Script Properties (Setup)
-1. Open the Apps Script project (`script.google.com`).
-2. Go to **Project Settings → Script Properties**.
-3. Add:
-   - `GEMINI_API_KEY` – comma-separated API keys (primary).
-   - `FREE_LLM_API_KEY` – optional fallback key.
-   - `OPENROUTER_API_KEY` – optional fallback key for OpenRouter.
-4. The `setup()` function in each project's `Code.gs` logs missing keys.
+## Conventions / Anti-patterns
 
-## AI Provider (`shared/AIProviders.gs`)
-- Exposes: `getGeminiApiKeys()`, `getFreeLLMApiKey()`, `getOpenRouterApiKey()`, `callGemini(prompt, opts)`, `callFreeLLM(prompt, opts)`, `callOpenRouter(prompt, opts)`, `callAI(prompt, opts)`.
-- Default `maxTokens` = 800 (override via `{maxTokens}`).
-- Both projects call `callAI()` for reminder text or digest generation.
-- Waterfall: Gemini (multi-key fallback) → FreeLLMAPI → OpenRouter → throws (caller catches and uses fallback template).
-- **Note**: Gemini uses `gemini-2.5-flash` (latest free model) with automatic fallback to other providers when quota is exceeded.
+- Do NOT hard-code keys — Script Properties only.
+- Do NOT edit `AIProviders.gs` per-project — canonical is `shared/AIProviders.gs`; per-project dups (`LabelReminder/AIProviders.gs`, `FollowUpReminder/AIProviders.gs`) are stale — remove on cleanup.
+- Do NOT add `doGet`/`doPost` — time-triggered only.
+- LabelReminder: `remind-every/{N}{unit}` (week/weeks/day/month/year, NL too); auto-pause replied threads → `remind-every/on-hold`; `CONFIG.CREATE_DRAFTS` true by default.
+- FollowUpReminder: labels `FollowUp/Active`, `FollowUp/Closed`, `FollowUp/Escalated`, `FollowUp/{N}`; dossier code from `KM-2026-XXXXX`; escalation after `ESCALATE_AFTER` reminders (default 3); triggers are weekly Tue/Thu + daily label sync (docs saying "every 6h" wrong for FollowUpReminder; correct for LabelReminder only).
+- AttachmentCleaner: Advanced Gmail API required; `CONFIG.SEARCH_QUERY` default `has:attachment larger:10M -label:bijlagen-verwerkt`; backup to Drive `Gmail Bijlagen Backup`; dry-run via `DRY_RUN`.
+- All `.gs` files deployed via shared `filePushOrder`; keep order when adding new files.
+- Per-project `AGENTS.md` exists (`LabelReminder/AGENTS.md`, `FollowUpReminder/AGENTS.md`).
 
-## Testing Conventions
-- Tests live in `LabelReminder/Test.gs`, `LabelReminder/TestCore.gs` and `FollowUpReminder/Test.gs`, `FollowUpReminder/TestCore.gs`, `FollowUpReminder/AIProviders.test.gs` (pure‑function style, inline assertions).
-- New tests must be listed in `.clasp.json` under `filePushOrder`.
-- Run `npm run validate` to ensure tests compile.
-- **Pattern**: `runAllTests()` runs suites wrapped in try/catch. Custom `assert(label, cond)` helper logs check/cross. Mock factories prefixed `make*`.
+## Gleaner webhook (`attachment-webhook-server/`)
 
-## `clasp` Push Order (`.clasp.json`)
-```json
-"filePushOrder": [
-  "shared/AIProviders.gs",
-  "LabelReminder/appsscript.json",
-  "LabelReminder/Code.gs",
-  "LabelReminder/Test.gs",
-  "FollowUpReminder/appsscript.json",
-  "FollowUpReminder/Code.gs",
-  "FollowUpReminder/Test.gs",
-  "FollowUpReminder/AIProviders.test.gs"
-]
-```
-- Keep this order when adding new `.gs` files.
+- Multi-tenant: every storage op must go through `app/storage.py` with a `user_id`; never build a path from a request value directly. Files are Fernet-encrypted — do not add code that writes plaintext into `STORAGE_ROOT`.
+- `WEBHOOK_SECRET` is gone; auth is per-user bearer tokens hashed in `STORAGE_ROOT/users.json`. `ADMIN_TOKEN` guards `/admin/users`.
 
-## Helpful Gotchas
-- **Do not hard‑code API keys** – they belong in Script Properties.
-- The validation workflow expects `CONFIG` object in each `Code.gs`; missing it will break CI.
-- When adding new required functions, update the corresponding loop in `validate.yml`.
-- All `.gs` files are deployed to both Apps Script projects via the shared `filePushOrder`.
-- **CI function check mismatch**: `validate.yml` still checks for `rewriteWithLlm` (should be `rewriteProse`). The local `validate.js` is the canonical source.
-- **FollowUpReminder triggers**: Docs say "every 6h" but actual `setup()` creates weekly triggers (Tue/Thu). LabelReminder IS every 6h.
-- **Tests never executed in CI**: Only syntax-checked. Add `clasp run` if automated test execution is needed.
-- **Per-project `AIProviders.gs` duplicates**: `LabelReminder/AIProviders.gs` and `FollowUpReminder/AIProviders.gs` are dups of `shared/AIProviders.gs` — remove when cleaning up.
+## Pitfalls
 
----
-*This file is intentionally compact. Add new entries only when an agent would otherwise miss critical repo‑specific behavior.*
+- `.clasp.json` `filePushOrder` references `FollowUpReminder/src/*.gs` — **no `src/` directory exists** (functions are in `Code.gs` + new modules at root); `AttachmentCleaner/` missing from push order. Update when restructuring.
+- `validate.yml` checks `rewriteWithLlm` (stale — should be `rewriteProse`) and doesn't list `AttachmentCleaner` checks. Local `validate.js` is canonical.
+- `AttachmentCleaner/Code.gs` uses trailing `_` on helpers (`getOrCreateBackupFolder_`) — entry points (`processAttachments`, `dryRun`, `previewAttachments`, `setupTrigger`) have no `_`; CI checks entry points only.
+- Beads (`bd`) is initialized (`BEADS_DIR=/mnt/HDD1/dev/06-apps-script-google/.beads`, `git config beads.role maintainer`). `bd list --pretty --status open` for kanban view. No BookStack/k3s content applies here.
