@@ -2,6 +2,7 @@
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from html import escape
 
 from .config import settings
 
@@ -11,21 +12,24 @@ def send_download_email(to_email: str, subject: str, url: str, zip_size: int, co
         print(f"[EMAIL-MOCK] to={to_email} url={url}")
         return True
 
+    clean_subject = " ".join((subject or "").split())
+    safe_subject = escape(clean_subject)
+    safe_url = escape(url, quote=True)
     size_mb = zip_size / (1024 * 1024)
     msg = MIMEMultipart("alternative")
-    msg["Subject"] = f"Bijlagen beschikbaar: {subject}"
+    msg["Subject"] = f"Bijlagen beschikbaar: {clean_subject}"
     msg["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM}>"
     msg["To"] = to_email
 
     text = (
-        f"De bijlagen van uw e-mail \"{subject}\" zijn verplaatst naar het archief.\n\n"
+        f'De bijlagen van uw e-mail "{clean_subject}" zijn verplaatst naar het archief.\n\n'
         f"Aantal bijlagen: {count}\nTotale grootte: {size_mb:.2f} MB\n\n"
-        f"Download (link verloopt niet):\n{url}\n"
+        f"Download:\n{url}\n"
     )
     html = (
-        f"<p>De bijlagen van uw e-mail <strong>{subject}</strong> zijn verplaatst naar het archief.</p>"
+        f"<p>De bijlagen van uw e-mail <strong>{safe_subject}</strong> zijn verplaatst naar het archief.</p>"
         f"<ul><li>Aantal bijlagen: {count}</li><li>Totale grootte: {size_mb:.2f} MB</li></ul>"
-        f"<p><a href=\"{url}\">Download de bijlagen</a> (link verloopt niet).</p>"
+        f"<p><a href=\"{safe_url}\">Download de bijlagen</a>.</p>"
     )
     msg.attach(MIMEText(text, "plain"))
     msg.attach(MIMEText(html, "html"))

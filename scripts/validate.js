@@ -28,8 +28,8 @@ const REQUIRED_FUNCTIONS = {
     'hasReply', 'hasCrossThreadReply', 'getLabeledThreadIds', 'daysAgo', 'formatDate'
   ],
   AttachmentCleaner: [
-    'getOrCreateBackupFolder', 'saveAttachment', 'processAttachments',
-    'dryRun', 'previewAttachments'
+    'processAttachments', 'dryRun', 'previewAttachments',
+    'uploadMessageAttachments_', 'stripAttachmentsFromRaw_'
   ],
 };
 
