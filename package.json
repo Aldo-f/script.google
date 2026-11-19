@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "validate": "node scripts/validate.js",
+    "test:webhook": "cd attachment-webhook-server && python3 -m pytest -q",
     "push:label": "cd LabelReminder && clasp push --force",
     "push:followup": "cd FollowUpReminder && clasp push --force",
     "push:attachment": "cd AttachmentCleaner && clasp push --force",

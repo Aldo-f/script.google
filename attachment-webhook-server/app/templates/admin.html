@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="app-bar">
+  <div class="brand-lockup">
+    <span class="brand-mark" aria-hidden="true">G</span>
+    <span class="brand-name">Gleaner Admin</span>
+  </div>
+  <div class="app-bar-actions">
+    <a class="icon-link" href="/" aria-label="My archives" title="My archives">
+      <span class="material-symbols-outlined" aria-hidden="true">folder_open</span>
+    </a>
+    <form method="post" action="/admin/ui/logout" class="inline-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <md-text-button type="submit">Sign out</md-text-button>
+      <button type="submit" class="text-link fallback-button">Sign out</button>
+    </form>
+  </div>
+</header>
+
+<main class="page">
+  <div class="page-heading">
+    <div>
+      <h1 class="page-title">Users &amp; access</h1>
+      <p class="page-subtitle">Create accounts, revoke access and rotate tokens. New tokens are shown once — copy them immediately.</p>
+    </div>
+  </div>
+
+  {% if error %}
+  <div class="notice notice-error" role="alert">{{ error }}</div>
+  {% endif %}
+  {% if notice == 'user-revoked' %}
+  <div class="notice notice-success" role="status">The user was revoked.</div>
+  {% elif new_token %}
+  <div class="notice notice-token" role="status">
+    <strong>Token created — copy it now:</strong>
+    <code class="token-value">{{ new_token }}</code>
+  </div>
+  {% endif %}
+
+  <section class="panel">
+    <h2 class="panel-title">Add a user</h2>
+    <form method="post" action="/admin/ui/users" class="inline-create" novalidate>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="field field-row">
+        <label class="field-label" for="new-user-id">Email address</label>
+        <input class="native-input" id="new-user-id" name="user_id" type="email"
+               placeholder="user@example.com" required>
+        <md-outlined-text-field class="mw-input" label="Email address" type="email"
+                                data-sync-to="new-user-id"></md-outlined-text-field>
+      </div>
+      <md-filled-button type="submit">Create token</md-filled-button>
+      <button type="submit" class="fallback-button">Create token</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2 class="panel-title">Accounts <span class="count-pill">{{ users|length }}</span></h2>
+    {% if users %}
+    <div class="user-list">
+      {% for u in users %}
+      <div class="user-row">
+        <div class="user-identity">
+          <span class="material-symbols-outlined" aria-hidden="true">account_circle</span>
+          <div>
+            <div class="user-email">{{ u.user_id }}</div>
+            <div class="user-meta">Created {{ u.created }} ·
+              <span class="{{ 'status-revoked' if u.revoked else 'status-active' }}">
+                {{ 'Revoked' if u.revoked else 'Active' }}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div class="user-actions">
+          <form method="post" action="/admin/ui/users/{{ u.user_id | urlencode }}/rotate-token" class="inline-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <md-outlined-button type="submit">Rotate token</md-outlined-button>
+            <button type="submit" class="outlined-fallback fallback-button">Rotate token</button>
+          </form>
+          {% if not u.revoked %}
+          <form method="post" action="/admin/ui/users/{{ u.user_id | urlencode }}/revoke" class="inline-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <md-outlined-button type="submit" data-confirm="Revoke all access for {{ u.user_id }}? This cannot be undone."
+                                class="danger-outline">Revoke user</md-outlined-button>
+            <button type="submit" class="outlined-fallback fallback-button">Revoke user</button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="muted">No accounts yet. Create one above.</p>
+    {% endif %}
+  </section>
+</main>
+{% endblock %}

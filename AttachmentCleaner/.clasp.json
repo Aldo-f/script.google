@@ -1,0 +1,8 @@
+{
+  "scriptId": "1RPiI7vrTO5UW4y0VOyfqpQEaMnOqdtZCSc3hjcFk_lxWwJeMy_KMwxAP",
+  "filePushOrder": [
+    "appsscript.json",
+    "Code.gs",
+    "TestCore.gs"
+  ]
+}

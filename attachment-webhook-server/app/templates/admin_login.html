@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="auth-layout">
+  <section class="auth-card" aria-labelledby="admin-login-title">
+    <div class="brand-lockup">
+      <span class="brand-mark" aria-hidden="true">G</span>
+      <span class="brand-name">Gleaner Admin</span>
+    </div>
+    <h1 id="admin-login-title" class="auth-title">Admin sign in</h1>
+    <p class="auth-subtitle">Enter the administrator token to manage users and access.</p>
+
+    {% if error %}
+    <div class="notice notice-error" role="alert">
+      <span class="material-symbols-outlined" aria-hidden="true">error</span>
+      <span>{{ error }}</span>
+    </div>
+    {% endif %}
+
+    <form method="post" action="/admin/ui/login" class="stack-form" novalidate>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="field">
+        <label class="field-label" for="admin-token">Admin token</label>
+        <input class="native-input" id="admin-token" name="token" type="password"
+               placeholder="Paste the admin token" autocomplete="off" required>
+        <md-outlined-text-field class="mw-input" label="Admin token" type="password"
+                                data-sync-to="admin-token" data-password-field></md-outlined-text-field>
+      </div>
+      <md-filled-button class="wide-button" type="submit">Continue</md-filled-button>
+      <button type="submit" class="fallback-button fallback-wide">Continue</button>
+    </form>
+    <p class="field-help admin-back"><a href="/">Back to my archives</a></p>
+  </section>
+</main>
+{% endblock %}

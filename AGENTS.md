@@ -1,109 +1,76 @@
-# AGENTS.md – Quick Reference for OpenCode Sessions
+# AGENTS.md — Google Apps Script reminders + Gleaner webhook
 
-**Generated:** 2026-07-11T11:25:30+02:00
-**Commit:** 78d07f5
-**Branch:** main
+**Repo:** Apps Script projects (LabelReminder / FollowUpReminder / AttachmentCleaner) plus the Gleaner FastAPI webhook. **Runtime:** GAS V8 (JS) + Python 3.12. **CI:** `.github/workflows/validate.yml` (GAS syntax/function checks + webhook pytest).
 
-## Repository Overview
-- **Projects**: `LabelReminder` (generic label‑based reminders) and `FollowUpReminder` (AWV case follow‑up).
-- **Language**: Google Apps Script (JavaScript V8 runtime).
-- **Key Concepts**:
-  - **AI Waterfall** – `Gemini` → `FreeLLMAPI` → fallback template (see `shared/AIProviders.gs`).
-  - **DRY** – Shared AI provider moved to `shared/AIProviders.gs`; both projects import it via `clasp` push order.
-  - **Script Properties** – All optional: `GEMINI_API_KEY`, `FREE_LLM_API_KEY`, `OPENROUTER_API_KEY`. Fallback template used when all AI providers unavailable.
+## Projects
 
-## AGENTS.md Hierarchy
-```
-AGENTS.md (root — this file)
-├── LabelReminder/AGENTS.md     ← universal label reminders
-└── FollowUpReminder/AGENTS.md  ← AWV case follow‑up
-```
+| Project | Purpose | Trigger |
+|---|---|---|
+| `LabelReminder/` | Label-based reminder replies (`remind-every/*`) | every 6h |
+| `FollowUpReminder/` | AWV case follow-up digests/escalations | weekly Tue/Thu + daily label sync |
+| `AttachmentCleaner/` | Moves large Gmail attachments to Gleaner, frees Gmail storage | hourly |
+| `attachment-webhook-server/` | Multi-tenant, encrypted attachment store | FastAPI service |
+| `shared/AIProviders.gs` | Gemini → FreeLLMAPI → OpenRouter waterfall | deployed to both reminder projects |
 
-## Repository Structure
-```
-script.google/
-├── shared/                     # Shared AI waterfall (deployed to both projects)
-│   └── AIProviders.gs
-├── LabelReminder/              # Universal label-based reminders
-├── FollowUpReminder/           # AWV case follow-up
-├── scripts/
-│   └── validate.js             # Local validation CLI
-├── .github/workflows/
-│   ├── validate.yml            # CI syntax + function check
-│   └── clasp-sync.yml          # CI deploys to both GAS projects
-├── packages/
-│   └── electron-app/           # Unrelated electron app stub (no source)
-└── FLOW.md, SPEC.md            # Architecture docs
+## Dev commands
+
+```bash
+npm run validate                 # local GAS syntax + required functions + CONFIG
+npm run push:label               # clasp push LabelReminder
+npm run push:followup            # clasp push FollowUpReminder
+npm run push:attachment          # clasp push AttachmentCleaner
+npm run test:webhook              # webhook pytest
+# or: cd attachment-webhook-server && python3 -m pytest -q
 ```
 
-## Common Commands
-| Task | Command |
-|------|---------|
-| Validate locally | `npm run validate` (runs `scripts/validate.js`) |
-| Push LabelReminder | `npm run push:label` |
-| Push FollowUpReminder | `npm run push:followup` |
-| Pull LabelReminder | `npm run pull:label` |
-| Pull FollowUpReminder | `npm run pull:followup` |
-| Login to clasp | `npm run login` |
-| Logout from clasp | `npm run logout` |
-| List clasp projects | `npm run list` |
-| **Run function (CLI)** | `clasp run functionName` |
-| **Tail logs (CLI)** | `clasp tail-logs --simplified` |
-| **Open script** | `clasp open-script` |
+Tests in the Apps Script projects are run manually in the editor via `runAllTests()`, `runAllAITests()`, `runAllCoreTests()`. Python tests run in CI.
 
-## CI / Validation
-- **GitHub Action** `.github/workflows/validate.yml` runs on every push/PR to `main`.
-- It parses all `*.gs` files, substitutes Apps Script globals, and checks syntax with `node --check`.
-- It also verifies required functions exist for each project and that a `CONFIG` object is declared.
-- Ensure any new functions are added to the validation lists.
-- **Note**: Tests are syntax-checked but never *executed* in CI — run manually via `runAllTests()` in the Apps Script editor.
+## Script Properties
 
-## Script Properties (Setup)
-1. Open the Apps Script project (`script.google.com`).
-2. Go to **Project Settings → Script Properties**.
-3. Add:
-   - `GEMINI_API_KEY` – comma-separated API keys (primary).
-   - `FREE_LLM_API_KEY` – optional fallback key.
-   - `OPENROUTER_API_KEY` – optional fallback key for OpenRouter.
-4. The `setup()` function in each project's `Code.gs` logs missing keys.
+- Reminder projects: `GEMINI_API_KEY`, `FREE_LLM_API_KEY`, `OPENROUTER_API_KEY` (all optional; fallback template when no AI provider is available).
+- AttachmentCleaner:
+  - `WEBHOOK_TOKEN` — per-user Gleaner bearer token (required).
+  - `GLEANER_NOTIFY_EMAIL` — optional owner notification address; defaults to the active Google user.
+  - Never hard-code tokens or keys in `.gs` files.
 
-## AI Provider (`shared/AIProviders.gs`)
-- Exposes: `getGeminiApiKeys()`, `getFreeLLMApiKey()`, `getOpenRouterApiKey()`, `callGemini(prompt, opts)`, `callFreeLLM(prompt, opts)`, `callOpenRouter(prompt, opts)`, `callAI(prompt, opts)`.
-- Default `maxTokens` = 800 (override via `{maxTokens}`).
-- Both projects call `callAI()` for reminder text or digest generation.
-- Waterfall: Gemini (multi-key fallback) → FreeLLMAPI → OpenRouter → throws (caller catches and uses fallback template).
-- **Note**: Gemini uses `gemini-2.5-flash` (latest free model) with automatic fallback to other providers when quota is exceeded.
+## Gleaner webhook security rules
 
-## Testing Conventions
-- Tests live in `LabelReminder/Test.gs`, `LabelReminder/TestCore.gs` and `FollowUpReminder/Test.gs`, `FollowUpReminder/TestCore.gs`, `FollowUpReminder/AIProviders.test.gs` (pure‑function style, inline assertions).
-- New tests must be listed in `.clasp.json` under `filePushOrder`.
-- Run `npm run validate` to ensure tests compile.
-- **Pattern**: `runAllTests()` runs suites wrapped in try/catch. Custom `assert(label, cond)` helper logs check/cross. Mock factories prefixed `make*`.
+- Identity is the bearer token; only `sha256(token)` is stored in `STORAGE_ROOT/users.json`.
+- Tenant = `sha256(user_id)[:32]`; the raw email never appears in a filesystem path.
+- All storage operations go through `app/storage.py` with a `user_id`. Never build a path directly from request input.
+- Files on PVC are Fernet-encrypted with `HKDF-SHA256(USER_MASTER_KEY, salt=USER_KEY_SALT, info="<tenant_hash>:v1")` and stored under a fixed `GLEANER-v1:` envelope. No plaintext attachment or metadata may be written to `STORAGE_ROOT`.
+- Downloads use signed capability links (`tenant:download_id:exp`) so a forwarded link works without login; listing, deleting, and revoking require the owner's token/session.
+- The server decrypts. There is no browser-side crypto and no key in a URL fragment.
+- `ADMIN_TOKEN` guards the admin API and `/admin` page; `SIGNING_SECRET` signs links, sessions and CSRF tokens; `USER_MASTER_KEY` loss means total data loss.
 
-## `clasp` Push Order (`.clasp.json`)
-```json
-"filePushOrder": [
-  "shared/AIProviders.gs",
-  "LabelReminder/appsscript.json",
-  "LabelReminder/Code.gs",
-  "LabelReminder/Test.gs",
-  "FollowUpReminder/appsscript.json",
-  "FollowUpReminder/Code.gs",
-  "FollowUpReminder/Test.gs",
-  "FollowUpReminder/AIProviders.test.gs"
-]
-```
-- Keep this order when adding new `.gs` files.
+## AttachmentCleaner behaviour
 
-## Helpful Gotchas
-- **Do not hard‑code API keys** – they belong in Script Properties.
-- The validation workflow expects `CONFIG` object in each `Code.gs`; missing it will break CI.
-- When adding new required functions, update the corresponding loop in `validate.yml`.
-- All `.gs` files are deployed to both Apps Script projects via the shared `filePushOrder`.
-- **CI function check mismatch**: `validate.yml` still checks for `rewriteWithLlm` (should be `rewriteProse`). The local `validate.js` is the canonical source.
-- **FollowUpReminder triggers**: Docs say "every 6h" but actual `setup()` creates weekly triggers (Tue/Thu). LabelReminder IS every 6h.
-- **Tests never executed in CI**: Only syntax-checked. Add `clasp run` if automated test execution is needed.
-- **Per-project `AIProviders.gs` duplicates**: `LabelReminder/AIProviders.gs` and `FollowUpReminder/AIProviders.gs` are dups of `shared/AIProviders.gs` — remove when cleaning up.
+- Workflow: upload attachments → rewrite the mail with a short Gleaner note + download link → permanently delete the original (configurable) so Gmail storage is actually reclaimed.
+- `DRY_RUN` is non-mutating: no rewrite, no delete, no upload.
+- Never delete an original unless upload + rewritten-message insert both succeeded.
+- `PERMANENTLY_DELETE_ORIGINAL: true` by default; `TRASH_MESSAGES` is the fallback when permanent deletion is disabled.
+- The webhook is the **only** backup path — there is no Drive fallback, no `Rollback.gs`, and no legacy migration script.
 
----
-*This file is intentionally compact. Add new entries only when an agent would otherwise miss critical repo‑specific behavior.*
+## Gleaner web UI
+
+- Jinja2 templates live in `attachment-webhook-server/app/templates/`; local assets in `app/static/`. The Dockerfile copies the whole `app/` directory, so both are included.
+- Material Web Components are pinned (`@material/web@2.5.0`) and loaded as ES modules from esm.sh in `app/static/js/app.js`. Native HTML controls remain as fallbacks if the CDN is unavailable.
+- Pages: `/login` (owner token), `/` (dashboard with search, download, revoke, delete), `/admin` (create/revoke users, rotate tokens, admin sign-in). Download links still go straight to the ZIP.
+- Every state-changing UI form carries a signed CSRF token; session cookies are HttpOnly/SameSite=Lax (Secure unless `SECURE_COOKIES=false`).
+- Jinja2 autoescaping is always on — never mark user-supplied subject/sender as `safe`.
+
+## Conventions / anti-patterns
+
+- Do not hard-code API keys or tokens — Script Properties only.
+- Do not edit per-project `AIProviders.gs`; canonical source is `shared/AIProviders.gs`.
+- Do not add `doGet`/`doPost` to Apps Script projects — they are time-triggered.
+- Keep `.clasp.json` `filePushOrder` in sync with actual files; the root list used to reference a non-existent `FollowUpReminder/src/` tree.
+- `AttachmentCleaner` helper functions use a trailing `_`; entry points do not. CI checks entry points only.
+- FollowUpReminder docs saying "every 6h" are wrong — it is weekly (Tue/Thu). LabelReminder is every 6h.
+- Apps Script tests are syntax-checked in CI but never executed there.
+
+## Deployment notes (infra repo, not here)
+
+- Secrets come from Kubernetes Secret `gleaner-webhook-secrets`: `USER_MASTER_KEY`, `USER_KEY_SALT`, `SIGNING_SECRET`, `ADMIN_TOKEN`.
+- PVC `gleaner-webhook-storage` must use `longhorn`; Helm must inject secrets via `envFrom`, not plaintext values.
+- Back up `USER_MASTER_KEY` before enabling real uploads — losing it makes every archive unreadable. There is no key-rotation or legacy-migration tooling; start with a clean store.

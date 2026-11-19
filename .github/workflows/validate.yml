@@ -1,4 +1,5 @@
-name: Validate Google Apps Script
+name: Validate
+
 on:
   push:
     branches: [main]
@@ -40,8 +41,8 @@ jobs:
         run: |
           echo "Checking required functions..."
           
-          # LabelReminder required functions
-          for fn in "checkReminders" "autoPauseOnReply" "previewReminders" "dryRun" "sendReminder" "generateReminderText" "getGeminiApiKeys" "callFreeLLM" "callGemini" "callAI" "setup"; do
+          # LabelReminder required functions (entry points — no trailing _)
+          for fn in "checkReminders" "autoPauseOnReply" "previewReminders" "dryRun" "setup"; do
             if ! grep -r "function $fn" LabelReminder/ --include="*.gs"; then
               echo "❌ Missing function: $fn in LabelReminder"
               exit 1
@@ -49,8 +50,8 @@ jobs:
           done
           echo "✅ LabelReminder: all required functions present"
           
-          # FollowUpReminder required functions
-          for fn in "checkDigests" "checkEscalations" "processFollowUps" "collectPending" "sendDigest" "sendEscalation" "rewriteProse" "callFreeLLM" "callGemini" "callAI" "getGeminiApiKeys" "setup" "syncLabels"; do
+          # FollowUpReminder required functions (entry points — no trailing _)
+          for fn in "checkDigests" "checkEscalations" "processFollowUps" "setup" "syncLabels" "previewPending" "dryRun"; do
             if ! grep -r "function $fn" FollowUpReminder/ --include="*.gs"; then
               echo "❌ Missing function: $fn in FollowUpReminder"
               exit 1
@@ -97,3 +98,34 @@ jobs:
         env:
           CLASP_CREDENTIALS: ${{ secrets.CLASP_CREDENTIALS }}
           CLASP_TEST_PROJECT_ID: ${{ secrets.CLASP_TEST_PROJECT_ID }}
+
+  webhook-tests:
+    name: Test Gleaner webhook (Python)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: attachment-webhook-server
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: attachment-webhook-server/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run pytest
+        env:
+          STORAGE_ROOT: /tmp/gleaner-webhook-tests
+          USER_MASTER_KEY: 6162636465666768696a6b6c6d6e6f707172737475767778797a3031
+          USER_KEY_SALT: ci-salt
+          SIGNING_SECRET: ci-signing-secret
+          ADMIN_TOKEN: ci-admin-token
+          PUBLIC_BASE_URL: http://localhost:8000
+          SMTP_HOST: localhost
+        run: python3 -m pytest -q

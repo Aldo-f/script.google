@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="app-bar">
+  <div class="brand-lockup">
+    <span class="brand-mark" aria-hidden="true">G</span>
+    <span class="brand-name">Gleaner</span>
+  </div>
+  <div class="app-bar-actions">
+    <span class="account-chip" title="{{ user_email }}">{{ user_email }}</span>
+    <a class="icon-link" href="/admin" aria-label="Admin settings" title="Admin settings">
+      <span class="material-symbols-outlined" aria-hidden="true">admin_panel_settings</span>
+    </a>
+    <form method="post" action="/ui/logout" class="inline-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <md-text-button type="submit">Sign out</md-text-button>
+      <button type="submit" class="text-link fallback-button">Sign out</button>
+    </form>
+  </div>
+</header>
+
+<main class="page">
+  <div class="page-heading">
+    <div>
+      <h1 class="page-title">My archives</h1>
+      <p class="page-subtitle">Attachments removed from your Gmail, kept safely here.</p>
+    </div>
+  </div>
+
+  {% if notice == 'link-revoked' %}
+  <div class="notice notice-success" role="status">The download link was revoked. The archive is still here.</div>
+  {% elif notice == 'deleted' %}
+  <div class="notice notice-success" role="status">The archive was deleted.</div>
+  {% endif %}
+
+  <section class="stats" aria-label="Storage summary">
+    <div class="stat"><span class="stat-value">{{ items|length }}</span><span class="stat-label">Archives</span></div>
+    <div class="stat"><span class="stat-value">{{ total_mb }} MB</span><span class="stat-label">Stored securely</span></div>
+    <div class="stat"><span class="stat-value">{{ total_mb }} MB</span><span class="stat-label">Gmail space freed</span></div>
+  </section>
+
+  {% if items %}
+  <div class="toolbar">
+    <div class="search-wrap">
+      <span class="material-symbols-outlined search-icon" aria-hidden="true">search</span>
+      <label class="sr-only" for="archive-search">Search archives</label>
+      <input id="archive-search" class="search-input" type="search"
+             placeholder="Search by subject, sender or date" autocomplete="off">
+    </div>
+  </div>
+
+  <section class="item-list" aria-label="Archived attachments">
+    <div class="list-head" aria-hidden="true">
+      <span>Date</span><span>Subject</span><span>Attachments</span><span>Size</span><span>Actions</span>
+    </div>
+    {% for item in items %}
+      {% include "_item.html" %}
+    {% endfor %}
+  </section>
+  <p class="no-results" id="no-results" hidden>No archives match your search.</p>
+  {% else %}
+  <section class="empty-state">
+    <span class="material-symbols-outlined empty-icon" aria-hidden="true">inbox</span>
+    <h2>Nothing archived yet</h2>
+    <p>Run AttachmentCleaner on your Gmail account. Large attachments will be moved here and the heavy originals removed — freeing up your Google storage.</p>
+  </section>
+  {% endif %}
+</main>
+{% endblock %}

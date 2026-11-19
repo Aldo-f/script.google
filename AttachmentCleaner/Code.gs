@@ -1,13 +1,13 @@
 // Required Apps Script globals
-/* global GmailApp, DriveApp, UrlFetchApp, ScriptApp, Logger, Gmail */
+/* global GmailApp, UrlFetchApp, ScriptApp, Logger, Gmail */
 
 /**
  * GmailAttachmentCleaner.gs
  *
  * Automatically removes large attachments from Gmail to save storage space,
  * while preserving the email message itself (original date, sender, recipients,
- * formatting, and text). All attachments are first safely backed up to a
- * dedicated folder on Google Drive.
+ * formatting, and text). Attachments are uploaded to the self-hosted Gleaner
+ * archive, which is the only backup path. There is no Drive fallback.
  *
  * SETUP:
  *   1. script.google.com → New project → paste this file
@@ -36,12 +36,6 @@ const CONFIG = {
     return `has:attachment larger:${this.MIN_ATTACHMENT_SIZE_MB}M older_than:${this.OLDER_THAN}`;
   },
 
-  /** Name of the Google Drive folder where attachments will be backed up. */
-  DRIVE_FOLDER_NAME: 'Gmail Bijlagen Backup',
-
-  /** Optional: direct ID of a Drive folder. If set, takes precedence over DRIVE_FOLDER_NAME. */
-  DRIVE_FOLDER_ID: '',
-
   /** Label applied to the rewritten message so it won't be processed again. */
   PROCESSED_LABEL: 'bijlagen-verwerkt',
 
@@ -51,122 +45,21 @@ const CONFIG = {
   /** Maximum seconds per execution (Apps Script limit is 360s = 6 min). Leave margin. */
   MAX_RUNTIME_SECONDS: 300,
 
-  /** Whether to compress attachments into a single ZIP per email (saves 30-70% space). */
-  ZIP_ATTACHMENTS: true,
-
   /** Whether to actually execute destructive actions (trash messages). Set to false for dry-run testing. */
   DRY_RUN: false,
 
-  /** Whether to actually move original messages to trash. Override in dry-run mode. */
+  /**
+   * Permanently delete the original message after a successful webhook upload
+   * and rewrite. Falls back to TRASH_MESSAGES when false (or when deletion fails).
+   */
+  PERMANENTLY_DELETE_ORIGINAL: true,
+
+  /** Whether to move original messages to trash. Override in dry-run mode. */
   TRASH_MESSAGES: true,
+
+  /** Gleaner webhook endpoint (multi-user). */
+  WEBHOOK_URL: 'https://gleaner.aldof.duckdns.org/webhook/gmail-attachments',
 };
-
-// ─── DRIVE INTEGRATION ────────────────────────────────────────────────────────
-
-/**
- * Returns the Google Drive folder used for attachment backups.
- * If DRIVE_FOLDER_ID is set, looks up that folder directly.
- * Otherwise, looks up (or creates) a folder by DRIVE_FOLDER_NAME.
- *
- * @returns {GoogleAppsScript.Drive.Folder} The backup folder
- * @throws {Error} If the folder ID is specified but not found
- */
-function getOrCreateBackupFolder_() {
-  if (CONFIG.DRIVE_FOLDER_ID) {
-    const folder = DriveApp.getFolderById(CONFIG.DRIVE_FOLDER_ID);
-    if (!folder) {
-      throw new Error(`Drive folder with ID "${CONFIG.DRIVE_FOLDER_ID}" not found.`);
-    }
-    Logger.log('[DRIVE] Using folder by ID: ' + CONFIG.DRIVE_FOLDER_ID);
-    return folder;
-  }
-
-  const folders = DriveApp.getFoldersByName(CONFIG.DRIVE_FOLDER_NAME);
-  if (folders.hasNext()) {
-    const folder = folders.next();
-    Logger.log('[DRIVE] Found existing folder: "' + CONFIG.DRIVE_FOLDER_NAME + '" (ID: ' + folder.getId() + ')');
-    return folder;
-  }
-
-  // Folder doesn't exist — create it
-  const folder = DriveApp.createFolder(CONFIG.DRIVE_FOLDER_NAME);
-  Logger.log('[DRIVE] Created new folder: "' + CONFIG.DRIVE_FOLDER_NAME + '" (ID: ' + folder.getId() + ')');
-  return folder;
-}
-
-/**
- * Generates a unique filename within the backup folder.
- * If a file with the same name already exists, appends the thread ID
- * (or a timestamp) to the filename to avoid collisions.
- *
- * @param {string} originalName - The original attachment filename
- * @param {string} threadId - The Gmail thread ID (used for disambiguation)
- * @param {GoogleAppsScript.Drive.Folder} folder - The Drive folder
- * @returns {string} A unique filename safe for Drive
- */
-function getUniqueFilename_(originalName, threadId, folder) {
-  // Check if a file with this name already exists in the folder
-  const existing = folder.getFilesByName(originalName);
-  if (existing.hasNext()) {
-    // A file with the same name already exists — append thread ID for uniqueness
-    const ext = getExtension_(originalName);
-    const base = originalName.slice(0, -(ext ? ext.length + 1 : 0));
-    const timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd_HHmmss');
-    const newName = `${base}_${timestamp}_${threadId.substring(0, 8)}${ext ? '.' + ext : ''}`;
-    Logger.log('[DRIVE] Name collision: "' + originalName + '" → "' + newName + '"');
-    return newName;
-  }
-  return originalName;
-}
-
-/**
- * Extracts the file extension (without dot) from a filename.
- *
- * @param {string} filename
- * @returns {string} Extension without dot, or empty string if none
- */
-function getExtension_(filename) {
-  const lastDot = filename.lastIndexOf('.');
-  if (lastDot <= 0) return ''; // No dot, or dot is the first char (hidden file)
-  return filename.slice(lastDot + 1);
-}
-
-/**
- * Saves an attachment to the backup Drive folder.
- * If CONFIG.ZIP_ATTACHMENTS is true, collects all attachments and writes a single ZIP per email.
- *
- * @param {GoogleAppsScript.Gmail.Attachment} attachment
- * @param {GoogleAppsScript.Drive.Folder} folder
- * @param {string} threadId
- * @returns {{name: string, size: number, driveId: string}} Metadata about the saved file
- */
-function saveAttachment_(attachment, folder, threadId) {
-  // If zip mode, we'll collect and return metadata without writing individual files
-  // The actual zip writing happens in processAttachments after all attachments are collected
-  if (CONFIG.ZIP_ATTACHMENTS) {
-    const originalName = attachment.getName();
-    const blob = attachment.copyBlob();
-    blob.setName(originalName);
-    return {
-      name: originalName,
-      blob: blob,
-      size: blob.getBytes().length,
-      driveId: null, // Will be set after zip is created
-    };
-  }
-
-  const originalName = attachment.getName();
-  const uniqueName = getUniqueFilename_(originalName, threadId, folder);
-  const blob = attachment.copyBlob();
-  blob.setName(uniqueName);
-  const file = folder.createFile(blob);
-  Logger.log('[DRIVE] Saved: "' + uniqueName + '" (' + file.getSize() + ' bytes)');
-  return {
-    name: uniqueName,
-    size: file.getSize(),
-    driveId: file.getId(),
-  };
-}
 
 // ─── MESSAGE REWRITING (Advanced Gmail API) ──────────────────────────────────
 
@@ -218,6 +111,7 @@ function getRawMessageBytes_(messageId) {
  *
  * @param {string} rawMessage - Raw RFC 2822 message (base64 encoded by Gmail API)
  * @param {string[]} attachmentNames - List of attachment filenames removed (for the note)
+ * @param {string} [downloadUrl] - Gleaner download URL to include in the note
  * @returns {string} Base64-encoded clean RFC 2822 message
  */
 /**
@@ -271,7 +165,7 @@ function decodeRawMessage_(rawMessage) {
   }
 }
 
-function stripAttachmentsFromRaw_(rawMessage, attachmentNames) {
+function stripAttachmentsFromRaw_(rawMessage, attachmentNames, downloadUrl) {
   // Gmail API returns raw messages as base64url-encoded RFC 2822 message.
   const decoded = decodeRawMessage_(rawMessage);
   const messageString = Utilities.newBlob(decoded).getDataAsString();
@@ -298,7 +192,7 @@ function stripAttachmentsFromRaw_(rawMessage, attachmentNames) {
   const parts = body.split('--' + boundary);
 
   const keptParts = [];
-  const attachmentNote = buildAttachmentNote_(attachmentNames);
+  const attachmentNote = buildAttachmentNote_(attachmentNames, downloadUrl);
 
   for (const part of parts) {
     if (part.trim() === '' || part.trim() === '--') continue;
@@ -306,7 +200,7 @@ function stripAttachmentsFromRaw_(rawMessage, attachmentNames) {
     // Check if this part is an attachment (has Content-Disposition: attachment)
     const dispositionMatch = part.match(/Content-Disposition:\s*attachment/i);
     if (dispositionMatch) {
-      // This is an attachment — skip it (it's already saved to Drive)
+      // This is an attachment — skip it (it's already archived)
       const nameMatch = part.match(/filename="?([^"]+)"?/i);
       const filename = nameMatch ? nameMatch[1] : 'unknown';
       Logger.log('[REBUILD] Stripping attachment: "' + filename + '"');
@@ -347,16 +241,20 @@ function stripAttachmentsFromRaw_(rawMessage, attachmentNames) {
 }
 
 /**
- * Builds a human-readable note listing removed attachments.
+ * Builds a plain-text note listing attachments moved to the Gleaner archive.
  *
  * @param {string[]} attachmentNames
- * @returns {string} HTML + plain text note
+ * @param {string} [downloadUrl] - Optional Gleaner download URL
+ * @returns {string} Plain text note
  */
-function buildAttachmentNote_(attachmentNames) {
-  const lines = ['Met bijlage(n) weggehaald en opgeslagen in Google Drive:'];
+function buildAttachmentNote_(attachmentNames, downloadUrl = '') {
+  const lines = ['Bijlage(n) verplaatst naar het Gleaner-archief:'];
   attachmentNames.forEach(name => {
-    lines.push('[Bijlage "' + name + '" verwijderd en opgeslagen in Google Drive]');
+    lines.push('- ' + name);
   });
+  if (downloadUrl) {
+    lines.push('Download: ' + downloadUrl);
+  }
   return lines.join('\n');
 }
 
@@ -484,10 +382,11 @@ function ensureBase64UrlEncoded_(rawMessage) {
 /**
  * Processes emails with large attachments:
  *   1. Finds emails matching the SEARCH_QUERY
- *   2. Saves all attachments to Google Drive (optionally zipped)
+ *   2. Uploads attachments to the Gleaner webhook
  *   3. Creates a clean copy (without attachments) preserving metadata
- *   4. Trashes the original message
- *   5. Labels the new message as processed
+ *   4. After a successful upload + insert, removes the original (permanent
+ *      delete when PERMANENTLY_DELETE_ORIGINAL, otherwise trash) — DRY_RUN
+ *      makes no changes at all
  *
  * Uses BATCH_SIZE and MAX_RUNTIME_SECONDS to limit processing per run and prevent timeouts.
  * Supports continuation: if time runs out, state is saved to PropertiesService and resumed on next run.
@@ -500,7 +399,6 @@ function processAttachments(threads) {
   const startTime = new Date();
   const timeoutMs = CONFIG.MAX_RUNTIME_SECONDS * 1000;
 
-  const folder = getOrCreateBackupFolder_();
   // No processed label — so adjusting the 10MB limit won't skip messages
   const processedLabel = null;
 
@@ -562,58 +460,61 @@ function processAttachments(threads) {
         const messageId = message.getId();
         Logger.log('[PROCESS] Message ID: ' + messageId + ' — Subject: ' + message.getSubject() + ' — Attachments: ' + attachments.length);
 
-        const msgDate = Utilities.formatDate(message.getDate(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
-        const safeSubject = (message.getSubject() || 'geen-onderwerp').replace(/[\\/:*?"<>|]/g, '-');
-        const subfolderName = msgDate + ' - ' + safeSubject;
-        const emailFolder = folder.createFolder(subfolderName);
-        Logger.log('[DRIVE] Email folder: ' + subfolderName);
-
-        // 1. Save original .eml + attachments to email subfolder
-        const rawMessage = getRawMessage_(messageId);
-        const emlBlob = Utilities.newBlob(getRawMessageBytes_(messageId)).setName(subfolderName + '.eml');
-        emailFolder.createFile(emlBlob);
-        Logger.log('[DRIVE] Saved .eml: ' + subfolderName + '.eml');
-
-        // Collect attachments (for zipping if enabled)
-        const savedFiles = [];
-        const attachmentBlobs = [];
-        for (const attachment of attachments) {
-          const saved = saveAttachment_(attachment, emailFolder, threadId);
-          savedFiles.push(saved);
-          if (CONFIG.ZIP_ATTACHMENTS && saved.blob) {
-            attachmentBlobs.push(saved.blob);
-          }
-          totalAttachments++;
-          totalBytes += saved.size;
-        }
-
-        // If zip mode, create a single ZIP file with all attachments
-        if (CONFIG.ZIP_ATTACHMENTS && attachmentBlobs.length > 0) {
-          const zipName = subfolderName + '-attachments.zip';
-          const zipBlob = Utilities.zip(attachmentBlobs, zipName);
-          emailFolder.createFile(zipBlob);
-          Logger.log('[DRIVE] Saved ZIP: ' + zipName + ' (' + zipBlob.getBytes().length + ' bytes)');
-          
-          // Clean up individual attachment files (they were not created, but we need to delete the metadata)
-          // Actually, in zip mode we don't create individual files, so nothing to clean up
-        }
-
-        // 2. Strip attachments from already-fetched raw message
-        const attachmentNames = attachments.map(a => a.getName());
-        const cleanRaw = stripAttachmentsFromRaw_(rawMessage, attachmentNames);
-
-        // 3. Insert the rewritten message back into the same thread
-        insertRewrittenMessage_(cleanRaw, threadId, processedLabel);
-
-        // 4. Trash the original message (with heavy attachments)
-        if (CONFIG.DRY_RUN || !CONFIG.TRASH_MESSAGES) {
-          Logger.log('[SKIP] DRY_RUN mode — original message NOT trashed');
+        if (CONFIG.DRY_RUN) {
+          // ─── DRY RUN: log only, never fetch/strip/upload/insert/delete ────────────────
+          const finalAction = CONFIG.PERMANENTLY_DELETE_ORIGINAL ? 'permanently delete'
+            : (CONFIG.TRASH_MESSAGES ? 'move to trash' : 'leave untouched');
+          Logger.log('[DRY-RUN] would upload %d attachment(s) to Gleaner for message %s',
+            attachments.length, messageId);
+          Logger.log('[DRY-RUN] would rewrite the message and %s the original %s',
+            finalAction, messageId);
+          Logger.log('[DRY-RUN] would free an estimated %s bytes',
+            attachments.reduce((s, a) => s + a.getSize(), 0));
         } else {
-          message.moveToTrash();
-          Logger.log('[TRASH] Original message trashed: ' + messageId);
+          // 1. Fetch raw RFC 2822 message once.
+          const rawMessage = getRawMessage_(messageId);
+
+          // 2. GLEANER WEBHOOK (multi-user) — the only backup path.
+          const webhookResult = uploadMessageAttachments_(message);
+          const downloadUrl = webhookResult.downloadUrl || '';
+          totalAttachments += attachments.length;
+          // Count the real, raw attachment bytes freed — not the zipped size.
+          totalBytes += attachments.reduce((s, a) => s + a.getSize(), 0);
+          Logger.log('[WEBHOOK] stored: %s (%s att, %s bytes)',
+            webhookResult.downloadId, webhookResult.attachmentCount, webhookResult.zipSize);
+
+          // 3. Strip attachments from already-fetched raw message
+          const attachmentNames = attachments.map(a => a.getName());
+          const cleanRaw = stripAttachmentsFromRaw_(rawMessage, attachmentNames, downloadUrl);
+
+          // 4. Insert the rewritten message back into the same thread
+          insertRewrittenMessage_(cleanRaw, threadId, processedLabel);
+
+          // 5. Only after a successful upload + insert, remove the heavy original.
+          if (CONFIG.PERMANENTLY_DELETE_ORIGINAL) {
+            try {
+              Gmail.Users.Messages.remove('me', messageId);
+              Logger.log('[DELETE] Original message permanently deleted: ' + messageId);
+            } catch (e) {
+              Logger.log('[DELETE ERROR] Could not permanently delete %s: %s', messageId, e.message);
+              if (CONFIG.TRASH_MESSAGES) {
+                try {
+                  message.moveToTrash();
+                  Logger.log('[TRASH] Fallback — original moved to trash: ' + messageId);
+                } catch (trashErr) {
+                  Logger.log('[TRASH ERROR] Could not trash %s: %s', messageId, trashErr.message);
+                }
+              }
+            }
+          } else if (CONFIG.TRASH_MESSAGES) {
+            message.moveToTrash();
+            Logger.log('[TRASH] Original message moved to trash: ' + messageId);
+          } else {
+            Logger.log('[SKIP] Original message left untouched: ' + messageId);
+          }
         }
 
-        // 5. No label added (so 10MB limit stays adjustable)
+        // 6. No label added (so 10MB limit stays adjustable)
         // (label intentionally removed — see user's instruction)
 
         processed++;
@@ -723,8 +624,7 @@ function dryRun() {
 
 /**
  * Runs a REAL clean on exactly ONE email (oldest with >10MB attachment).
- * Use this to test the full clean+restore cycle.
- * Then run rollbackOneEmail(0) to restore it.
+ * The Gleaner webhook is the only backup path.
  */
 function cleanOneReal() {
   CONFIG.DRY_RUN = false;
@@ -770,11 +670,110 @@ function previewAttachments() {
 
   Logger.log('[PREVIEW] Total: ' + totalAttachments + ' attachment(s), ' + (totalBytes / (1024 * 1024)).toFixed(2) + ' MB');
 }
+
+// ─── GLEANER WEBHOOK (multi-user) ─────────────────────────────────────────────
+
+/**
+ * Returns the per-user Gleaner API token from Script Properties.
+ * The admin generates this token once and the user pastes it into
+ * Project Settings → Script Properties → WEBHOOK_TOKEN.
+ * @returns {string}
+ */
+function getWebhookToken_() {
+  const token = PropertiesService.getScriptProperties().getProperty('WEBHOOK_TOKEN');
+  if (!token) {
+    throw new Error(
+      'WEBHOOK_TOKEN not set. Ask your Gleaner admin for a token and add it ' +
+      'under Project Settings → Script Properties → WEBHOOK_TOKEN.'
+    );
+  }
+  return token;
+}
+
+/**
+ * Returns the optional notification email for the Gleaner user.
+ * Used as the payload's `notifyEmail` field; when unset, the active Google
+ * account is used. The server may still use the registered user_id as recipient.
+ *
+ * @returns {string}
+ */
+function getNotifyEmail_() {
+  const configured = PropertiesService.getScriptProperties().getProperty('GLEANER_NOTIFY_EMAIL');
+  if (configured) return configured;
+  return Session.getActiveUser().getEmail();
+}
+
+/**
+ * Sends one email's attachments to the Gleaner webhook.
+ * @param {object} payload - {threadId, messageId, subject, from, date, notifyEmail, attachments:[{filename,mimeType,base64Data}]}
+ * @returns {object} JSON response {downloadUrl, zipSize, attachmentCount, downloadId}
+ */
+function sendToWebhook_(payload) {
+  const response = UrlFetchApp.fetch(CONFIG.WEBHOOK_URL, {
+    method: 'post',
+    contentType: 'application/json',
+    headers: { Authorization: 'Bearer ' + getWebhookToken_() },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true,
+  });
+  const code = response.getResponseCode();
+  if (code < 200 || code >= 300) {
+    throw new Error('Gleaner webhook failed (HTTP ' + code + '): ' + response.getContentText());
+  }
+  return JSON.parse(response.getContentText());
+}
+
+/**
+ * Builds the webhook payload for one Gmail message and posts it.
+ * @param {GoogleAppsScript.Gmail.GmailMessage} message
+ * @returns {object} webhook response
+ */
+function uploadMessageAttachments_(message) {
+  const attachments = message.getAttachments({ includeInlineImages: false }).map(function (att) {
+    return {
+      filename: att.getName(),
+      mimeType: att.getContentType(),
+      base64Data: Utilities.base64Encode(att.getBytes()),
+    };
+  });
+  const payload = {
+    threadId: message.getThread().getId(),
+    messageId: message.getId(),
+    subject: message.getSubject(),
+    from: message.getFrom(),
+    date: message.getDate().toISOString(),
+    attachments: attachments,
+    notifyEmail: getNotifyEmail_(),
+  };
+  Logger.log('[WEBHOOK] uploading %s attachments for message %s', attachments.length, message.getId());
+  return sendToWebhook_(payload);
+}
+
+/**
+ * Dry-run of the multi-user webhook: verifies token presence and prints the
+ * payload shape for the newest matching email WITHOUT uploading anything.
+ */
+function testWebhookPayload() {
+  const token = getWebhookToken_();
+  Logger.log('[TEST] token present (length %s)', token.length);
+  const threads = GmailApp.search(CONFIG.SEARCH_QUERY, 0, 1);
+  if (!threads.length) {
+    Logger.log('[TEST] no matching emails');
+    return;
+  }
+  const msg = threads[0].getMessages()[0];
+  const atts = msg.getAttachments({ includeInlineImages: false });
+  Logger.log('[TEST] message=%s subject=%s attachments=%s totalBytes=%s',
+    msg.getId(), msg.getSubject(), atts.length,
+    atts.reduce(function (s, a) { return s + a.getSize(); }, 0));
+  Logger.log('[TEST] would POST to %s', CONFIG.WEBHOOK_URL);
+}
+
 // ─── TRIGGER MANAGEMENT ───────────────────────────────────────────────────────
 
 /**
- * Creates an hourly trigger to run processAttachments automatically.
- * The function handles continuation internally — it will resume from where it left off.
+ * Creates an hourly trigger to run runCleanerWithContinuation automatically.
+ * The wrapper handles continuation internally — it will resume from where it left off.
  * Call once manually to enable periodic cleanup of large attachments.
  */
 function setupTrigger() {
