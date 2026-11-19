@@ -7,8 +7,8 @@ ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Includes app/templates (Jinja UI) and app/static (CSS + Material JS).
 COPY app ./app
-COPY app/templates ./app/templates
 
 RUN mkdir -p /data/gmail-attachments && chown -R 1000:1000 /data
 USER 1000

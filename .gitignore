@@ -8,5 +8,6 @@ credentials.json
 *.log
 .DS_Store
 *.js
+!attachment-webhook-server/app/static/js/app.js
 creds.json
 graphify-out/

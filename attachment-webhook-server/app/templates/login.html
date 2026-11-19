@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="auth-layout">
+  <section class="auth-card" aria-labelledby="login-title">
+    <div class="brand-lockup">
+      <span class="brand-mark" aria-hidden="true">G</span>
+      <span class="brand-name">Gleaner</span>
+    </div>
+    <h1 id="login-title" class="auth-title">Welcome back</h1>
+    <p class="auth-subtitle">Sign in with your personal Gleaner token to view your archived attachments.</p>
+
+    {% if error %}
+    <div class="notice notice-error" role="alert">
+      <span class="material-symbols-outlined" aria-hidden="true">error</span>
+      <span>{{ error }}</span>
+    </div>
+    {% endif %}
+
+    <form method="post" action="/login" class="stack-form" novalidate>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="field">
+        <label class="field-label" for="token">Gleaner token</label>
+        <input class="native-input" id="token" name="token" type="password"
+               placeholder="Paste your token" autocomplete="current-password" required>
+        <md-outlined-text-field class="mw-input" label="Gleaner token" type="password"
+                                data-sync-to="token" data-password-field></md-outlined-text-field>
+        <button type="button" class="reveal-button" data-reveal="token"
+                aria-label="Show token" title="Show token">
+          <span class="material-symbols-outlined" aria-hidden="true">visibility</span>
+        </button>
+        <p class="field-help">Ask your administrator if you don’t have a token.</p>
+      </div>
+      <md-filled-button class="wide-button" type="submit">Sign in</md-filled-button>
+      <button type="submit" class="fallback-button fallback-wide">Sign in</button>
+    </form>
+  </section>
+  <p class="auth-footer">Your attachments stay encrypted on the server. Only you can manage your archives.</p>
+</main>
+{% endblock %}

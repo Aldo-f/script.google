@@ -1,0 +1,27 @@
+<article class="item-card" data-search="{{ (item.subject ~ ' ' ~ item.sender ~ ' ' ~ item.date) | lower }}">
+  <div class="item-date">{{ item.date }}</div>
+  <div class="item-main">
+    <div class="item-subject" title="{{ item.subject }}">{{ item.subject or '(no subject)' }}</div>
+    <div class="item-meta">From {{ item.sender or 'unknown' }}</div>
+  </div>
+  <div class="item-count">{{ item.attachment_count }} file{{ '' if item.attachment_count == 1 else 's' }}</div>
+  <div class="item-size">{{ item.size_mb }} MB</div>
+  <div class="item-actions">
+    <md-filled-button href="{{ item.url }}" class="download-button">Download</md-filled-button>
+    <a class="fallback-button fallback-download" href="{{ item.url }}">Download</a>
+
+    <form method="post" action="/ui/downloads/{{ item.download_id | urlencode }}/revoke" class="inline-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <md-outlined-button type="submit" data-confirm="Revoke the download link for &quot;{{ item.subject }}&quot;? The archive itself stays."
+                          class="danger-outline">Revoke link</md-outlined-button>
+      <button type="submit" class="outlined-fallback fallback-button">Revoke link</button>
+    </form>
+
+    <form method="post" action="/ui/downloads/{{ item.download_id | urlencode }}/delete" class="inline-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <md-outlined-button type="submit" data-confirm="Permanently delete &quot;{{ item.subject }}&quot;? This cannot be undone."
+                          class="danger-outline">Delete</md-outlined-button>
+      <button type="submit" class="outlined-fallback fallback-button">Delete</button>
+    </form>
+  </div>
+</article>

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="auth-layout">
+  <section class="auth-card" aria-labelledby="error-title">
+    <div class="brand-lockup">
+      <span class="brand-mark" aria-hidden="true">G</span>
+      <span class="brand-name">Gleaner</span>
+    </div>
+    <span class="material-symbols-outlined error-icon" aria-hidden="true">link_off</span>
+    <h1 id="error-title" class="auth-title">Something went wrong</h1>
+    <p class="auth-subtitle">{{ message }}</p>
+    <div class="error-actions">
+      <md-filled-button href="/">Go to my archives</md-filled-button>
+      <a class="fallback-button fallback-download" href="/">Go to my archives</a>
+      <md-outlined-button href="/login">Sign in</md-outlined-button>
+      <a class="outlined-fallback fallback-button" href="/login">Sign in</a>
+    </div>
+    {% if code %}<p class="error-code">Reference: {{ code }}</p>{% endif %}
+  </section>
+</main>
+{% endblock %}
